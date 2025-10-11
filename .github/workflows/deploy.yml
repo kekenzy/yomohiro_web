@@ -52,6 +52,22 @@ jobs:
         echo "$LIGHTSAIL_SSH_KEY" > ~/.ssh/lightsail_key
         chmod 600 ~/.ssh/lightsail_key
         
+        # 秘密鍵の形式を検証
+        echo "Validating SSH key format..."
+        if ! head -1 ~/.ssh/lightsail_key | grep -q "BEGIN.*PRIVATE KEY"; then
+          echo "ERROR: Invalid private key format - missing BEGIN marker"
+          head -3 ~/.ssh/lightsail_key
+          exit 1
+        fi
+        
+        if ! tail -1 ~/.ssh/lightsail_key | grep -q "END.*PRIVATE KEY"; then
+          echo "ERROR: Invalid private key format - missing END marker"
+          tail -3 ~/.ssh/lightsail_key
+          exit 1
+        fi
+        
+        echo "SSH key format validation passed"
+        
         # SSH設定を作成
         cat > ~/.ssh/config << EOF
         Host lightsail
