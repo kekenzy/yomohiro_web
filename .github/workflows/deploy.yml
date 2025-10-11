@@ -60,11 +60,20 @@ jobs:
           IdentityFile ~/.ssh/lightsail_key
           StrictHostKeyChecking no
           UserKnownHostsFile /dev/null
+          ServerAliveInterval 60
+          ServerAliveCountMax 3
         EOF
         
-        # SSH接続テスト
-        echo "Testing SSH connection..."
-        ssh -o ConnectTimeout=10 lightsail "echo 'SSH connection successful'"
+        # SSH接続テスト（詳細ログ付き）
+        echo "Testing SSH connection with verbose output..."
+        ssh -vvv -o ConnectTimeout=30 lightsail "echo 'SSH connection successful'" || {
+          echo "SSH connection failed. Checking key format..."
+          echo "Key file contents:"
+          head -5 ~/.ssh/lightsail_key
+          echo "Key file size:"
+          wc -c ~/.ssh/lightsail_key
+          exit 1
+        }
         
         # デプロイスクリプトを実行
         ssh lightsail << 'ENDSSH'
