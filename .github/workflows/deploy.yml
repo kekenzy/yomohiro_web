@@ -52,11 +52,18 @@ jobs:
         echo "$LIGHTSAIL_SSH_KEY" > ~/.ssh/lightsail_key
         chmod 600 ~/.ssh/lightsail_key
         
-        # known_hostsに追加
-        ssh-keyscan -H $LIGHTSAIL_HOST >> ~/.ssh/known_hosts
+        # SSH設定を作成
+        cat > ~/.ssh/config << EOF
+        Host lightsail
+          HostName $LIGHTSAIL_HOST
+          User $LIGHTSAIL_USER
+          IdentityFile ~/.ssh/lightsail_key
+          StrictHostKeyChecking no
+          UserKnownHostsFile /dev/null
+        EOF
         
         # デプロイスクリプトを実行
-        ssh -i ~/.ssh/lightsail_key $LIGHTSAIL_USER@$LIGHTSAIL_HOST << 'ENDSSH'
+        ssh lightsail << 'ENDSSH'
           cd /home/ubuntu/yomohiro_web
           git pull origin main
           source venv/bin/activate
