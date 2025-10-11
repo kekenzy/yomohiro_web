@@ -64,8 +64,6 @@ jobs:
         
         # SSH接続テスト
         echo "Testing SSH connection..."
-        echo "$(cat ~/.ssh/lightsail_key)"
-        echo $lightsail
         ssh -o ConnectTimeout=10 lightsail "echo 'SSH connection successful'"
         
         # デプロイスクリプトを実行
