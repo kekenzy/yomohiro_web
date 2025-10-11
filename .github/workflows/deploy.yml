@@ -62,6 +62,10 @@ jobs:
           UserKnownHostsFile /dev/null
         EOF
         
+        # SSH接続テスト
+        echo "Testing SSH connection..."
+        ssh -o ConnectTimeout=10 lightsail "echo 'SSH connection successful'"
+        
         # デプロイスクリプトを実行
         ssh lightsail << 'ENDSSH'
           cd /home/ubuntu/yomohiro_web
