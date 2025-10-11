@@ -1,0 +1,267 @@
+/* U-街プラザ 東西南北館 統一スタイル */
+
+:root {
+    --primary-color: #ffc107;
+    --primary-dark: #e0a800;
+    --primary-light: #fff3cd;
+    --text-dark: #000;
+    --text-muted: #6c757d;
+    --border-color: #ffc107;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #0dcaf0;
+}
+
+/* 全体のスタイル */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* ナビゲーションバー */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    color: var(--text-dark) !important;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+/* カードスタイル */
+.card {
+    border: 2px solid var(--border-color);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.card-header {
+    background-color: var(--primary-color) !important;
+    color: var(--text-dark) !important;
+    border-bottom: 2px solid var(--border-color);
+    font-weight: bold;
+}
+
+.card-title {
+    color: var(--text-dark) !important;
+    font-weight: bold;
+}
+
+/* ボタンスタイル */
+.btn-warning {
+    background-color: var(--primary-color);
+    border-color: var(--primary-dark);
+    color: var(--text-dark);
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-warning:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+    color: var(--text-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.btn-outline-warning {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+    font-weight: 500;
+}
+
+.btn-outline-warning:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--text-dark);
+}
+
+/* フォームスタイル */
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+
+/* バッジスタイル */
+.badge.bg-warning {
+    background-color: var(--primary-color) !important;
+    color: var(--text-dark) !important;
+}
+
+/* アラートスタイル */
+.alert-warning {
+    background-color: var(--primary-light);
+    border-color: var(--primary-color);
+    color: var(--text-dark);
+}
+
+/* テーブルスタイル */
+.table-hover tbody tr:hover {
+    background-color: var(--primary-light);
+}
+
+.table th {
+    background-color: var(--primary-color);
+    color: var(--text-dark);
+    font-weight: bold;
+    border-color: var(--primary-dark);
+}
+
+/* アイコンスタイル */
+.text-warning {
+    color: var(--primary-color) !important;
+}
+
+/* リンクスタイル */
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+/* 時間枠選択スタイル */
+.time-slot-option {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.time-slot-option:hover {
+    background-color: var(--primary-light);
+    border-color: var(--primary-color);
+}
+
+.time-slot-option.selected {
+    background-color: var(--primary-color);
+    color: var(--text-dark);
+    border-color: var(--primary-dark);
+    font-weight: bold;
+}
+
+.time-slot-option.disabled {
+    background-color: #e9ecef;
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* ページネーション */
+.page-link {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.page-link:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--text-dark);
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--text-dark);
+}
+
+/* フッター */
+footer {
+    background-color: var(--primary-light) !important;
+    border-top: 2px solid var(--primary-color);
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .navbar-nav {
+        text-align: center;
+    }
+}
+
+/* アニメーション */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* カスタムスクロールバー */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* 場所カードスタイル */
+.location-card {
+    transition: all 0.3s ease;
+    border: 2px solid var(--border-color);
+}
+
+.location-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    border-color: var(--primary-dark);
+}
+
+.location-card:hover .card-title {
+    color: var(--primary-dark) !important;
+}
+
+.location-card:hover .btn {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+}

@@ -1,0 +1,262 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}{{ title }} - 予約システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .time-slot-option {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .time-slot-option:hover {
+        background-color: #f8f9fa;
+    }
+    .time-slot-option.selected {
+        background-color: #ffc107;
+        color: #000;
+    }
+    .time-slot-option.disabled {
+        background-color: #e9ecef;
+        color: #6c757d;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-calendar-plus text-dark"></i> {{ title }}
+                </h2>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            <i class="fas fa-info-circle"></i> {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle"></i> エラーが発生しました
+                        </h5>
+                        <ul class="mb-0">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+                
+                <form method="post" id="reservation-form">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.location.id_for_label }}" class="form-label">
+                                    <i class="fas fa-map-marker-alt"></i> 場所 <span class="text-danger">*</span>
+                                </label>
+                                {{ form.location }}
+                                {% if form.location.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.location.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <!-- デバッグ情報 -->
+                                {% if form.location.value %}
+                                    <small class="text-muted">選択された場所ID: {{ form.location.value }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.date.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar"></i> 予約日 <span class="text-danger">*</span>
+                                </label>
+                                {{ form.date }}
+                                {% if form.date.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.date.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.time_slot.id_for_label }}" class="form-label">
+                            <i class="fas fa-clock"></i> 時間枠 <span class="text-danger">*</span>
+                        </label>
+                        <div id="time-slots" class="row">
+                            <div class="col-12">
+                                <p class="text-muted">場所と日付を選択すると、利用可能な時間枠が表示されます。</p>
+                            </div>
+                        </div>
+                        {{ form.time_slot }}
+                        {% if form.time_slot.errors %}
+                            <div class="text-danger">
+                                {% for error in form.time_slot.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.customer_name.id_for_label }}" class="form-label">
+                                    <i class="fas fa-user"></i> お客様名 <span class="text-danger">*</span>
+                                </label>
+                                {{ form.customer_name }}
+                                {% if form.customer_name.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.customer_name.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.customer_email.id_for_label }}" class="form-label">
+                                    <i class="fas fa-envelope"></i> メールアドレス <span class="text-danger">*</span>
+                                </label>
+                                {{ form.customer_email }}
+                                {% if form.customer_email.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.customer_email.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.customer_phone.id_for_label }}" class="form-label">
+                                    <i class="fas fa-phone"></i> 電話番号 <span class="text-danger">*</span>
+                                </label>
+                                {{ form.customer_phone }}
+                                {% if form.customer_phone.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.customer_phone.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">
+                            <i class="fas fa-sticky-note"></i> 備考
+                        </label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                            <div class="text-danger">
+                                {% for error in form.notes.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'reservations:index' %}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left"></i> 戻る
+                        </a>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save"></i> 予約を確定
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const locationSelect = document.getElementById('{{ form.location.id_for_label }}');
+    const dateInput = document.getElementById('{{ form.date.id_for_label }}');
+    const timeSlotSelect = document.getElementById('{{ form.time_slot.id_for_label }}');
+    const timeSlotsContainer = document.getElementById('time-slots');
+
+    function checkAvailability() {
+        const locationId = locationSelect.value;
+        const dateValue = dateInput.value;
+
+        if (locationId && dateValue) {
+            fetch(`{% url 'reservations:check_availability' %}?location=${locationId}&date=${dateValue}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        timeSlotsContainer.innerHTML = `<div class="col-12"><p class="text-danger">${data.error}</p></div>`;
+                        return;
+                    }
+
+                    let html = '';
+                    if (data.available_slots.length > 0) {
+                        html = '<div class="col-12"><h6>利用可能な時間枠:</h6></div>';
+                        data.available_slots.forEach(slot => {
+                            html += `
+                                <div class="col-md-4 mb-2">
+                                    <div class="time-slot-option card p-2 text-center" data-slot-id="${slot.id}">
+                                        <strong>${slot.start_time} - ${slot.end_time}</strong>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html = '<div class="col-12"><p class="text-warning">この日は利用可能な時間枠がありません。</p></div>';
+                    }
+                    timeSlotsContainer.innerHTML = html;
+
+                    // 時間枠選択のイベントリスナーを追加
+                    document.querySelectorAll('.time-slot-option').forEach(option => {
+                        option.addEventListener('click', function() {
+                            document.querySelectorAll('.time-slot-option').forEach(opt => opt.classList.remove('selected'));
+                            this.classList.add('selected');
+                            timeSlotSelect.value = this.dataset.slotId;
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    timeSlotsContainer.innerHTML = '<div class="col-12"><p class="text-danger">エラーが発生しました。</p></div>';
+                });
+        } else {
+            timeSlotsContainer.innerHTML = '<div class="col-12"><p class="text-muted">場所と日付を選択すると、利用可能な時間枠が表示されます。</p></div>';
+        }
+    }
+
+    // イベントリスナーを追加
+    locationSelect.addEventListener('change', checkAvailability);
+    dateInput.addEventListener('change', checkAvailability);
+
+    // ページ読み込み時に場所が既に選択されている場合、自動的に時間枠をチェック
+    if (locationSelect.value && dateInput.value) {
+        checkAvailability();
+    }
+});
+</script>
+{% endblock %}
+

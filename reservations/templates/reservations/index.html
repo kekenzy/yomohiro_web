@@ -1,0 +1,439 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}U-街プラザ 東西南北館{% endblock %}
+
+{% block extra_css %}
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
+<style>
+    .calendar-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 15px;
+    }
+    .fc-event {
+        cursor: pointer;
+        font-size: 0.8em;
+    }
+    .fc-event:hover {
+        opacity: 0.8;
+    }
+    .fc-toolbar-title {
+        color: #ffc107;
+        font-weight: bold;
+        font-size: 1.1em;
+    }
+    .fc-button-primary {
+        background-color: #ffc107 !important;
+        border-color: #e0a800 !important;
+        color: #000 !important;
+        font-size: 0.8em;
+    }
+    .fc-button-primary:hover {
+        background-color: #e0a800 !important;
+        border-color: #e0a800 !important;
+    }
+    .fc-button-active {
+        background-color: #e0a800 !important;
+        border-color: #e0a800 !important;
+    }
+    .fc-daygrid-day-number {
+        font-size: 0.9em;
+    }
+    .fc-col-header-cell {
+        font-size: 0.8em;
+    }
+    .hero-section {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .feature-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    .stats-card {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        color: white;
+        border-radius: 15px;
+        transition: transform 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .stats-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+    }
+    .location-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    .location-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    .section-title {
+        position: relative;
+        display: inline-block;
+        margin-bottom: 2rem;
+    }
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 3px;
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        border-radius: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ヒーローセクション -->
+<div class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mx-auto text-center">
+                <h1 class="display-4 fw-bold mb-3">
+                    <i class="fas fa-building"></i> U-街プラザ 東西南北館
+                </h1>
+                <p class="lead mb-4">快適な空間で素晴らしい時間をお過ごしください</p>
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                    {% if user.is_authenticated %}
+                        <!-- 管理者向けメニュー -->
+                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light btn-lg">
+                            <i class="fas fa-calendar-plus"></i> 新規予約作成
+                        </a>
+                        <a href="{% url 'reservations:reservation_list' %}" class="btn btn-light btn-lg">
+                            <i class="fas fa-list"></i> 予約一覧
+                        </a>
+                        <a href="{% url 'reservations:location_list' %}" class="btn btn-light btn-lg">
+                            <i class="fas fa-map-marker-alt"></i> 場所管理
+                        </a>
+                    {% else %}
+                        <!-- 一般ユーザー向けメニュー -->
+                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light btn-lg">
+                            <i class="fas fa-calendar-plus"></i> 予約
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if user.is_authenticated %}
+<!-- 管理者向けダッシュボード -->
+<div class="container mb-5">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="text-center section-title">
+                <i class="fas fa-tachometer-alt text-warning"></i> 管理者ダッシュボード
+            </h2>
+            
+            <!-- 統計カード -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <h4 class="card-title">{{ today_reservations|default:"0" }}</h4>
+                            <p class="card-text">今日の予約</p>
+                            <i class="fas fa-calendar-day fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <h4 class="card-title">{{ month_reservations|default:"0" }}</h4>
+                            <p class="card-text">今月の予約</p>
+                            <i class="fas fa-calendar-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <h4 class="card-title">{{ location_count|default:"0" }}</h4>
+                            <p class="card-text">利用可能な場所</p>
+                            <i class="fas fa-map-marker-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <h4 class="card-title">{{ recent_count|default:"0" }}</h4>
+                            <p class="card-text">最近の予約</p>
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 管理者メニュー -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-cogs text-dark"></i> 管理メニュー
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <a href="{% url 'reservations:reservation_list' %}" class="btn btn-warning btn-lg w-100">
+                                        <i class="fas fa-calendar-alt"></i><br>
+                                        予約管理
+                                    </a>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <a href="{% url 'reservations:location_management' %}" class="btn btn-warning btn-lg w-100">
+                                        <i class="fas fa-map-marker-alt"></i><br>
+                                        場所管理
+                                    </a>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <a href="{% url 'reservations:reservation_create' %}" class="btn btn-warning btn-lg w-100">
+                                        <i class="fas fa-plus"></i><br>
+                                        新規予約
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- メインコンテンツセクション -->
+<div class="container">
+    <div class="row">
+        <!-- 場所メニューセクション -->
+        <div class="col-lg-8">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h2 class="text-center section-title">
+                        <i class="fas fa-map-marker-alt text-warning"></i> 場所メニュー
+                    </h2>
+                </div>
+            </div>
+            
+            <!-- 場所カード -->
+            <div class="row">
+                {% for location in locations %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 border-warning location-card feature-card" style="cursor: pointer;" data-location-id="{{ location.id }}">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-warning">{{ location.name }}</h5>
+                            <p class="card-text">
+                                <span class="badge bg-warning text-dark fs-6">{{ location.capacity }}名</span><br>
+                                <small class="text-muted">
+                                    {% if location.description %}
+                                        {{ location.description|truncatewords:10 }}
+                                    {% else %}
+                                        利用可能な場所です
+                                    {% endif %}
+                                </small>
+                            </p>
+                            <div class="mt-3">
+                                <span class="btn btn-warning">
+                                    <i class="fas fa-calendar-plus"></i> 今すぐ予約
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-warning text-center">
+                        <i class="fas fa-info-circle"></i> 現在利用可能な場所はありません。
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- カレンダーセクション -->
+        <div class="col-lg-4">
+            <div class="card border-warning h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt text-dark"></i> 予約カレンダー
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="calendar-container">
+                        <div id="calendar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 営業情報セクション -->
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-warning">
+                        <i class="fas fa-clock"></i> 営業情報
+                    </h5>
+                    <p class="card-text">
+                        <strong>21:00まで営業</strong><br>
+                        <i class="fas fa-phone"></i> +81 92-781-3519<br>
+                        <i class="fas fa-envelope"></i> u-potaling@outlook.jp<br>
+                        <i class="fas fa-map-marker-alt"></i> U-街プラザ 東西南北館・福岡県 福岡市中央区 1-10-1, 唐人町パークハウス102
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 店舗と営業時間セクション -->
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8">
+            <h3 class="mb-4 section-title">
+                <i class="fas fa-store text-warning"></i> 店舗と営業時間
+            </h3>
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">U-街プラザ 東西南北館</h5>
+                    <p class="card-text">
+                        <strong>〒810-0063</strong><br>
+                        福岡県 福岡市中央区 1-10-1, 唐人町パークハウス102<br>
+                        <i class="fas fa-phone"></i> 092-781-3519<br>
+                        <i class="fas fa-envelope"></i> u-potaling@outlook.jp<br>
+                        <a href="#" class="btn btn-outline-warning btn-sm">
+                            <i class="fas fa-map"></i> アクセスマップ
+                        </a>
+                    </p>
+                    
+                    <h6 class="mt-4">営業時間</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><strong>月曜日:</strong> 9:00 - 21:00</li>
+                                <li><strong>火曜日:</strong> 9:00 - 21:00</li>
+                                <li><strong>水曜日:</strong> 9:00 - 21:00</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><strong>木曜日:</strong> 9:00 - 21:00</li>
+                                <li><strong>金曜日:</strong> 9:00 - 21:00</li>
+                                <li><strong>土曜日:</strong> 9:00 - 21:00</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <h3 class="mb-4 section-title">
+                <i class="fas fa-map-marked-alt text-warning"></i> アクセス
+            </h3>
+            <div class="card border-warning">
+                <div class="card-body">
+                    <div class="ratio ratio-4x3">
+                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3323.1234567890123!2d130.12345678901234!3d33.12345678901234!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzPCsDA3JzM0LjQiTiAxMzDCsDA3JzM0LjQiRQ!5e0!3m2!1sja!2sjp!4v1234567890123" 
+                                style="border:0;" allowfullscreen="" loading="lazy" 
+                                title="U-街プラザ 東西南北館 - 唐人町パークハウス102"></iframe>
+                    </div>
+                    <p class="text-center mt-2">
+                        <small class="text-muted">福岡県 福岡市中央区 1-10-1, 唐人町パークハウス102</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 場所カードのクリックイベント
+    const locationCards = document.querySelectorAll('.location-card');
+    locationCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const locationId = this.getAttribute('data-location-id');
+            if (locationId) {
+                window.location.href = `{% url 'reservations:reservation_create' %}?location=${locationId}`;
+            }
+        });
+    });
+
+    // カレンダーの初期化
+    const calendarEl = document.getElementById('calendar');
+    if (calendarEl) {
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'ja',
+            headerToolbar: {
+                left: 'prev,next',
+                center: 'title',
+                right: 'today'
+            },
+            buttonText: {
+                today: '今日'
+            },
+            events: '{% url "reservations:calendar_events" %}',
+            eventClick: function(info) {
+                // イベントクリック時の処理
+                const event = info.event;
+                const props = event.extendedProps;
+                
+                let details = `
+                    <strong>予約詳細</strong><br>
+                    場所: ${props.location}<br>
+                    時間: ${event.start.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})} - ${event.end.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})}<br>
+                    ステータス: ${props.status}<br>
+                `;
+                
+                if (props.notes) {
+                    details += `備考: ${props.notes}`;
+                }
+                
+                alert(details);
+            },
+            eventDidMount: function(info) {
+                // イベントのツールチップを設定
+                const event = info.event;
+                const props = event.extendedProps;
+                
+                info.el.title = `${props.location}\n${event.start.toLocaleString('ja-JP')}`;
+            },
+            height: 400,
+            aspectRatio: 1.2,
+            dayMaxEvents: 3,
+            moreLinkClick: 'popover'
+        });
+        
+        calendar.render();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,36 @@
+from django.contrib import admin
+from .models import Location, TimeSlot, Reservation
+
+@admin.register(Location)
+class LocationAdmin(admin.ModelAdmin):
+    list_display = ['name', 'capacity', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'description']
+    ordering = ['name']
+
+@admin.register(TimeSlot)
+class TimeSlotAdmin(admin.ModelAdmin):
+    list_display = ['start_time', 'end_time', 'is_active']
+    list_filter = ['is_active']
+    ordering = ['start_time']
+
+@admin.register(Reservation)
+class ReservationAdmin(admin.ModelAdmin):
+    list_display = ['customer_name', 'location', 'date', 'time_slot', 'status', 'created_at']
+    list_filter = ['status', 'date', 'location', 'time_slot']
+    search_fields = ['customer_name', 'customer_email', 'customer_phone']
+    ordering = ['-date', 'time_slot__start_time']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('予約情報', {
+            'fields': ('location', 'time_slot', 'date', 'status')
+        }),
+        ('お客様情報', {
+            'fields': ('customer_name', 'customer_email', 'customer_phone')
+        }),
+        ('その他', {
+            'fields': ('notes', 'created_by', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )

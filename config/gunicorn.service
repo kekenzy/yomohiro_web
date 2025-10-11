@@ -1,0 +1,21 @@
+[Unit]
+Description=gunicorn daemon for yomohiro reservation system
+After=network.target
+
+[Service]
+Type=notify
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/yomohiro_web
+Environment="PATH=/home/ubuntu/yomohiro_web/venv/bin"
+ExecStart=/home/ubuntu/yomohiro_web/venv/bin/gunicorn \
+          --config /home/ubuntu/yomohiro_web/gunicorn_config.py \
+          reservation_system.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

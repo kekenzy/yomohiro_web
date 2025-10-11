@@ -1,0 +1,131 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}予約詳細 - 予約システム{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="card-title mb-0">
+                        <i class="fas fa-calendar-check text-dark"></i> 予約詳細
+                    </h2>
+                    <div>
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'reservations:reservation_edit' reservation.pk %}" class="btn btn-warning btn-sm">
+                                <i class="fas fa-edit"></i> 編集
+                            </a>
+                            <a href="{% url 'reservations:reservation_delete' reservation.pk %}" class="btn btn-danger btn-sm">
+                                <i class="fas fa-trash"></i> 削除
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="text-warning">
+                            <i class="fas fa-map-marker-alt"></i> 予約情報
+                        </h5>
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="30%">場所:</th>
+                                <td>{{ reservation.location.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>日付:</th>
+                                <td>{{ reservation.date|date:"Y年m月d日" }}</td>
+                            </tr>
+                            <tr>
+                                <th>時間:</th>
+                                <td>{{ reservation.time_slot.start_time }} - {{ reservation.time_slot.end_time }}</td>
+                            </tr>
+                            <tr>
+                                <th>ステータス:</th>
+                                <td>
+                                    {% if reservation.status == 'confirmed' %}
+                                        <span class="badge bg-success">確認済み</span>
+                                    {% elif reservation.status == 'pending' %}
+                                        <span class="badge bg-warning text-dark">保留中</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">キャンセル</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="text-warning">
+                            <i class="fas fa-user"></i> お客様情報
+                        </h5>
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="30%">お名前:</th>
+                                <td>{{ reservation.customer_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>メール:</th>
+                                <td>{{ reservation.customer_email }}</td>
+                            </tr>
+                            <tr>
+                                <th>電話番号:</th>
+                                <td>{{ reservation.customer_phone }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                {% if reservation.notes %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h5 class="text-warning">
+                                <i class="fas fa-sticky-note"></i> 備考
+                            </h5>
+                            <div class="card border-warning">
+                                <div class="card-body">
+                                    {{ reservation.notes|linebreaks }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h5 class="text-warning">
+                            <i class="fas fa-info-circle"></i> システム情報
+                        </h5>
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="15%">作成日時:</th>
+                                <td>{{ reservation.created_at|date:"Y年m月d日 H:i" }}</td>
+                            </tr>
+                            {% if reservation.created_by %}
+                                <tr>
+                                    <th>作成者:</th>
+                                    <td>{{ reservation.created_by.username }}</td>
+                                </tr>
+                            {% endif %}
+                            <tr>
+                                <th>更新日時:</th>
+                                <td>{{ reservation.updated_at|date:"Y年m月d日 H:i" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                    <a href="{% url 'reservations:reservation_list' %}" class="btn btn-secondary me-md-2">
+                        <i class="fas fa-list"></i> 予約一覧
+                    </a>
+                    <a href="{% url 'reservations:reservation_create' %}" class="btn btn-warning">
+                        <i class="fas fa-plus"></i> 新規予約
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

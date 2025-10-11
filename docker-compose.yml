@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=reservation_db
+      - POSTGRES_USER=reservation_user
+      - POSTGRES_PASSWORD=reservation_password
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8001
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://reservation_user:reservation_password@db:5432/reservation_db
+      - DEBUG=1
+
+volumes:
+  postgres_data:

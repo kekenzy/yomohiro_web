@@ -1,0 +1,285 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}予約管理 - U-街プラザ 東西南北館{% endblock %}
+
+{% block extra_css %}
+<style>
+    .calendar-container {
+        padding: 15px;
+    }
+    
+    .fc-event {
+        font-size: 0.9em;
+        font-weight: bold;
+        padding: 2px 4px;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+    
+    .fc-button-primary {
+        font-size: 0.9em;
+    }
+    
+    .fc-daygrid-day-number {
+        font-size: 1em;
+    }
+    
+    .fc-col-header-cell {
+        font-size: 0.9em;
+        font-weight: bold;
+    }
+    
+    .fc-event-title {
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-calendar-alt text-warning"></i> 予約管理
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 検索条件セクション -->
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-search text-dark"></i> 検索条件
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="get">
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="text-danger">
+                                    {% for error in field.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-search"></i> 検索
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 予約カレンダーセクション -->
+    <div class="col-md-9">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt text-dark"></i> 予約カレンダー
+                    </h5>
+                    <a href="{% url 'reservations:reservation_create' %}" class="btn btn-warning btn-sm">
+                        <i class="fas fa-plus"></i> 新規予約
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="calendar-container">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 予約一覧セクション -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list text-dark"></i> 予約一覧
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if page_obj %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>お客様名</th>
+                                    <th>場所</th>
+                                    <th>日付</th>
+                                    <th>時間</th>
+                                    <th>ステータス</th>
+                                    <th>作成日</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reservation in page_obj %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ reservation.customer_name }}</strong>
+                                            <br><small class="text-muted">{{ reservation.customer_email }}</small>
+                                        </td>
+                                        <td>{{ reservation.location.name }}</td>
+                                        <td>{{ reservation.date|date:"m/d" }}</td>
+                                        <td>{{ reservation.time_slot.start_time|time:"H:i" }} - {{ reservation.time_slot.end_time|time:"H:i" }}</td>
+                                        <td>
+                                            {% if reservation.status == 'confirmed' %}
+                                                <span class="badge bg-success">確認済み</span>
+                                            {% elif reservation.status == 'pending' %}
+                                                <span class="badge bg-warning text-dark">保留中</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">キャンセル</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ reservation.created_at|date:"m/d H:i" }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'reservations:reservation_detail' reservation.pk %}" class="btn btn-outline-warning btn-sm">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if user.is_authenticated %}
+                                                    <a href="{% url 'reservations:reservation_edit' reservation.pk %}" class="btn btn-outline-warning btn-sm">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- ページネーション -->
+                    {% if page_obj.has_other_pages %}
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1{% if request.GET.location %}&location={{ request.GET.location }}{% endif %}{% if request.GET.date %}&date={{ request.GET.date }}{% endif %}{% if request.GET.time_slot %}&time_slot={{ request.GET.time_slot }}{% endif %}">
+                                            <i class="fas fa-angle-double-left"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.location %}&location={{ request.GET.location }}{% endif %}{% if request.GET.date %}&date={{ request.GET.date }}{% endif %}{% if request.GET.time_slot %}&time_slot={{ request.GET.time_slot }}{% endif %}">
+                                            <i class="fas fa-angle-left"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}{% if request.GET.location %}&location={{ request.GET.location }}{% endif %}{% if request.GET.date %}&date={{ request.GET.date }}{% endif %}{% if request.GET.time_slot %}&time_slot={{ request.GET.time_slot }}{% endif %}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.location %}&location={{ request.GET.location }}{% endif %}{% if request.GET.date %}&date={{ request.GET.date }}{% endif %}{% if request.GET.time_slot %}&time_slot={{ request.GET.time_slot }}{% endif %}">
+                                            <i class="fas fa-angle-right"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.location %}&location={{ request.GET.location }}{% endif %}{% if request.GET.date %}&date={{ request.GET.date }}{% endif %}{% if request.GET.time_slot %}&time_slot={{ request.GET.time_slot }}{% endif %}">
+                                            <i class="fas fa-angle-double-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">予約が見つかりませんでした。</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // カレンダーの初期化
+    const calendarEl = document.getElementById('calendar');
+    if (calendarEl) {
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'ja',
+            headerToolbar: {
+                left: 'prev,next',
+                center: 'title',
+                right: 'today'
+            },
+            buttonText: {
+                today: '今日'
+            },
+            events: '{% url "reservations:calendar_events" %}',
+            eventClick: function(info) {
+                // イベントクリック時の処理
+                const event = info.event;
+                const props = event.extendedProps;
+                
+                let details = `
+                    <strong>予約詳細</strong><br>
+                    お客様名: ${props.customer_name}<br>
+                    場所: ${props.location}<br>
+                    時間: ${event.start.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})} - ${event.end.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})}<br>
+                    ステータス: ${props.status}<br>
+                `;
+                
+                if (props.notes) {
+                    details += `備考: ${props.notes}`;
+                }
+                
+                alert(details);
+            },
+            eventDidMount: function(info) {
+                // イベントのツールチップを設定
+                const event = info.event;
+                const props = event.extendedProps;
+                
+                info.el.title = `${props.customer_name} - ${props.location}\n${event.start.toLocaleString('ja-JP')}`;
+            },
+            height: 600,
+            aspectRatio: 1.5,
+            dayMaxEvents: 5,
+            moreLinkClick: 'popover',
+            eventDisplay: 'block',
+            eventTimeFormat: {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            }
+        });
+        
+        calendar.render();
+    }
+});
+</script>
+{% endblock %}

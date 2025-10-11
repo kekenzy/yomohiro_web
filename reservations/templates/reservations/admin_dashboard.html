@@ -1,0 +1,258 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}管理画面 - U-街プラザ 東西南北館{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-tachometer-alt text-warning"></i> 管理画面
+        </h1>
+    </div>
+</div>
+
+<!-- 統計カード -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ today_reservations }}</h4>
+                        <p class="card-text">今日の予約</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-day fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ month_reservations }}</h4>
+                        <p class="card-text">今月の予約</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ location_stats.count }}</h4>
+                        <p class="card-text">利用可能な場所</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-map-marker-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ recent_reservations.count }}</h4>
+                        <p class="card-text">最近の予約</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 管理メニュー -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cogs text-dark"></i> 管理メニュー
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <a href="{% url 'reservations:reservation_list' %}" class="btn btn-warning btn-lg w-100">
+                            <i class="fas fa-calendar-alt"></i><br>
+                            予約管理
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="{% url 'reservations:location_management' %}" class="btn btn-warning btn-lg w-100">
+                            <i class="fas fa-map-marker-alt"></i><br>
+                            場所管理
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="{% url 'reservations_timeslot_changelist' %}" class="btn btn-warning btn-lg w-100">
+                            <i class="fas fa-clock"></i><br>
+                            時間枠管理
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最近の予約 -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history text-dark"></i> 最近の予約
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_reservations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>お客様名</th>
+                                    <th>場所</th>
+                                    <th>日付</th>
+                                    <th>ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reservation in recent_reservations %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'reservations:reservation_detail' reservation.pk %}">
+                                                {{ reservation.customer_name }}
+                                            </a>
+                                        </td>
+                                        <td>{{ reservation.location.name }}</td>
+                                        <td>{{ reservation.date|date:"m/d" }}</td>
+                                        <td>
+                                            {% if reservation.status == 'confirmed' %}
+                                                <span class="badge bg-success">確認済み</span>
+                                            {% elif reservation.status == 'pending' %}
+                                                <span class="badge bg-warning text-dark">保留中</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">キャンセル</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">最近の予約はありません。</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar text-dark"></i> 場所別予約数
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if location_stats %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>場所名</th>
+                                    <th>予約数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for location in location_stats %}
+                                    <tr>
+                                        <td>{{ location.name }}</td>
+                                        <td>
+                                            <span class="badge bg-warning text-dark">{{ location.reservation_count }}</span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">場所のデータがありません。</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 今週の予約 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-calendar-week"></i> 今週の予約
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if week_reservations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>日付</th>
+                                    <th>時間</th>
+                                    <th>場所</th>
+                                    <th>お客様名</th>
+                                    <th>ステータス</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reservation in week_reservations %}
+                                    <tr>
+                                        <td>{{ reservation.date|date:"m/d (D)" }}</td>
+                                        <td>{{ reservation.time_slot.start_time|time:"H:i" }} - {{ reservation.time_slot.end_time|time:"H:i" }}</td>
+                                        <td>{{ reservation.location.name }}</td>
+                                        <td>{{ reservation.customer_name }}</td>
+                                        <td>
+                                            {% if reservation.status == 'confirmed' %}
+                                                <span class="badge bg-success">確認済み</span>
+                                            {% elif reservation.status == 'pending' %}
+                                                <span class="badge bg-warning">保留中</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">キャンセル</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'reservations:reservation_detail' reservation.pk %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">今週の予約はありません。</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
