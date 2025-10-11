@@ -74,6 +74,37 @@ class ReservationForm(forms.ModelForm):
 
         return cleaned_data
 
+class TimeSlotForm(forms.ModelForm):
+    """時間枠フォーム"""
+    class Meta:
+        model = TimeSlot
+        fields = ['start_time', 'end_time', 'is_active']
+        widgets = {
+            'start_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'end_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start_time = cleaned_data.get('start_time')
+        end_time = cleaned_data.get('end_time')
+
+        if start_time and end_time:
+            if start_time >= end_time:
+                raise forms.ValidationError('終了時間は開始時間より後にしてください。')
+            
+            # 重複チェック
+            existing_slot = TimeSlot.objects.filter(
+                start_time=start_time,
+                end_time=end_time
+            ).exclude(pk=self.instance.pk if self.instance else None)
+            
+            if existing_slot.exists():
+                raise forms.ValidationError('同じ時間枠が既に存在します。')
+
+        return cleaned_data
+
 class ReservationSearchForm(forms.Form):
     """予約検索フォーム"""
     location = forms.ModelChoiceField(

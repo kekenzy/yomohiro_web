@@ -1,0 +1,118 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}時間枠削除確認 - U-街プラザ 東西南北館{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> 時間枠削除確認
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-warning"></i>
+                    <strong>注意:</strong> この時間枠を削除しようとしています。
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>削除対象の時間枠</h6>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span><strong>{{ time_slot.start_time|time:"H:i" }} - {{ time_slot.end_time|time:"H:i" }}</strong></span>
+                                    <span class="badge {% if time_slot.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {% if time_slot.is_active %}有効{% else %}無効{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>関連する予約</h6>
+                        {% if existing_reservations %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-times-circle"></i>
+                                <strong>{{ existing_reservations.count }}件</strong> の予約がこの時間枠を使用しています。
+                                <br><small>予約がある時間枠は削除できません。</small>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                                    <h6 class="card-title">関連予約一覧:</h6>
+                                    {% for reservation in existing_reservations %}
+                                        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                            <div>
+                                                <strong>{{ reservation.customer_name }}</strong>
+                                                <br><small class="text-muted">{{ reservation.location.name }}</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <small>{{ reservation.date|date:"m/d" }}</small>
+                                                <br><span class="badge {% if reservation.status == 'confirmed' %}bg-success{% elif reservation.status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
+                                                    {% if reservation.status == 'confirmed' %}確認済み
+                                                    {% elif reservation.status == 'pending' %}保留中
+                                                    {% else %}キャンセル{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i>
+                                関連する予約はありません。削除可能です。
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'reservations:time_slot_management' %}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left"></i> キャンセル
+                        </a>
+                        {% if existing_reservations %}
+                            <button type="submit" class="btn btn-danger" disabled>
+                                <i class="fas fa-trash"></i> 削除できません
+                            </button>
+                        {% else %}
+                            <button type="submit" class="btn btn-danger" 
+                                    onclick="return confirm('本当に削除しますか？この操作は取り消せません。')">
+                                <i class="fas fa-trash"></i> 削除する
+                            </button>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if existing_reservations %}
+        <div class="card border-info mt-4">
+            <div class="card-header bg-info text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> 削除するには
+                </h6>
+            </div>
+            <div class="card-body">
+                <p>この時間枠を削除するには、以下の手順を実行してください：</p>
+                <ol>
+                    <li>関連する予約をキャンセルまたは他の時間枠に変更する</li>
+                    <li>または、時間枠を「無効」にする（削除せずに非表示にする）</li>
+                </ol>
+                <div class="mt-3">
+                    <a href="{% url 'reservations:time_slot_edit' time_slot.pk %}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> 無効にする（編集）
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

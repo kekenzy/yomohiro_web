@@ -10,7 +10,7 @@ from django.db.models import Q, Count
 from datetime import date, datetime, timedelta
 import json
 from .models import Location, TimeSlot, Reservation
-from .forms import ReservationForm, ReservationSearchForm, LocationForm
+from .forms import ReservationForm, ReservationSearchForm, LocationForm, TimeSlotForm
 
 def custom_login(request):
     """カスタムログインビュー"""
@@ -373,3 +373,69 @@ def check_availability(request):
         return JsonResponse({'error': '必要なパラメータが不足しています。'}, status=400)
     
     return JsonResponse({'error': 'GETメソッドのみサポートしています。'}, status=405)
+
+@login_required
+def time_slot_management(request):
+    """時間枠管理"""
+    time_slots = TimeSlot.objects.all().order_by('start_time')
+    return render(request, 'reservations/time_slot_management.html', {
+        'time_slots': time_slots
+    })
+
+@login_required
+def time_slot_add(request):
+    """時間枠追加"""
+    if request.method == 'POST':
+        form = TimeSlotForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '時間枠を追加しました。')
+            return redirect('reservations:time_slot_management')
+    else:
+        form = TimeSlotForm()
+    
+    return render(request, 'reservations/time_slot_form.html', {
+        'form': form,
+        'title': '時間枠追加'
+    })
+
+@login_required
+def time_slot_edit(request, pk):
+    """時間枠編集"""
+    time_slot = get_object_or_404(TimeSlot, pk=pk)
+    
+    if request.method == 'POST':
+        form = TimeSlotForm(request.POST, instance=time_slot)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '時間枠を更新しました。')
+            return redirect('reservations:time_slot_management')
+    else:
+        form = TimeSlotForm(instance=time_slot)
+    
+    return render(request, 'reservations/time_slot_form.html', {
+        'form': form,
+        'title': '時間枠編集',
+        'time_slot': time_slot
+    })
+
+@login_required
+def time_slot_delete(request, pk):
+    """時間枠削除"""
+    time_slot = get_object_or_404(TimeSlot, pk=pk)
+    
+    # 既存の予約があるかチェック
+    existing_reservations = Reservation.objects.filter(time_slot=time_slot)
+    
+    if request.method == 'POST':
+        if existing_reservations.exists():
+            messages.error(request, f'この時間枠には {existing_reservations.count()} 件の予約があります。削除できません。')
+        else:
+            time_slot.delete()
+            messages.success(request, '時間枠を削除しました。')
+        return redirect('reservations:time_slot_management')
+    
+    return render(request, 'reservations/time_slot_confirm_delete.html', {
+        'time_slot': time_slot,
+        'existing_reservations': existing_reservations
+    })

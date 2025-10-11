@@ -1,0 +1,110 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}時間枠管理 - U-街プラザ 東西南北館{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-clock text-warning"></i> 時間枠管理
+            </h2>
+            <a href="{% url 'reservations:time_slot_add' %}" class="btn btn-warning">
+                <i class="fas fa-plus"></i> 新しい時間枠を追加
+            </a>
+        </div>
+
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list"></i> 時間枠一覧
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if time_slots %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>開始時間</th>
+                                    <th>終了時間</th>
+                                    <th>時間枠</th>
+                                    <th>ステータス</th>
+                                    <th>予約数</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for time_slot in time_slots %}
+                                    <tr>
+                                        <td>{{ time_slot.start_time|time:"H:i" }}</td>
+                                        <td>{{ time_slot.end_time|time:"H:i" }}</td>
+                                        <td>
+                                            <span class="badge bg-info">
+                                                {{ time_slot.start_time|time:"H:i" }} - {{ time_slot.end_time|time:"H:i" }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if time_slot.is_active %}
+                                                <span class="badge bg-success">有効</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">無効</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">
+                                                {{ time_slot.reservation_set.count }}件
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'reservations:time_slot_edit' time_slot.pk %}" 
+                                                   class="btn btn-sm btn-outline-warning">
+                                                    <i class="fas fa-edit"></i> 編集
+                                                </a>
+                                                <a href="{% url 'reservations:time_slot_delete' time_slot.pk %}" 
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   onclick="return confirm('この時間枠を削除してもよろしいですか？')">
+                                                    <i class="fas fa-trash"></i> 削除
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">時間枠が設定されていません。</p>
+                        <a href="{% url 'reservations:time_slot_add' %}" class="btn btn-warning">
+                            <i class="fas fa-plus"></i> 最初の時間枠を追加
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> 時間枠管理について
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li>時間枠を追加・編集・削除できます</li>
+                    <li>既存の予約がある時間枠は削除できません</li>
+                    <li>無効にした時間枠は新しい予約では選択できません</li>
+                    <li>時間枠は重複できません</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
