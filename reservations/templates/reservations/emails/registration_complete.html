@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会員登録完了</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #ffc107;">会員登録が完了しました</h2>
+        
+        <p>こんにちは、{{ profile.full_name }}様</p>
+        
+        <p>この度は、U-街プラザ 東西南北館の会員登録をお申し込みいただき、誠にありがとうございます。</p>
+        
+        <p>会員登録が正常に完了いたしました。以下の情報で登録されています：</p>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>ユーザー名:</strong> {{ user.username }}</p>
+            <p><strong>メールアドレス:</strong> {{ user.email }}</p>
+            <p><strong>氏名:</strong> {{ profile.full_name }}</p>
+            <p><strong>プラン:</strong> {{ profile.plan.name|default:"未設定" }}</p>
+        </div>
+        
+        <p>ログインして、予約システムをご利用いただけます。</p>
+        
+        <p style="margin-top: 30px;">
+            <a href="{{ site_url }}" style="background-color: #ffc107; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                ログインする
+            </a>
+        </p>
+        
+        <p style="margin-top: 30px; font-size: 12px; color: #666;">
+            このメールは自動送信されています。心当たりがない場合は、このメールを無視してください。<br>
+            U-街プラザ 東西南北館
+        </p>
+    </div>
+</body>
+</html>
+

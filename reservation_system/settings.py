@@ -77,12 +77,23 @@ WSGI_APPLICATION = 'reservation_system.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# 環境変数DATABASE_URLが設定されている場合はPostgreSQLを使用
+DATABASE_URL = config('DATABASE_URL', default=None)
+
+if DATABASE_URL:
+    # PostgreSQLを使用（Docker環境など）
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL)
     }
-}
+else:
+    # SQLiteを使用（ローカル開発環境）
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -126,6 +137,10 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Media files (User uploaded files)
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
@@ -142,3 +157,19 @@ if not DEBUG:
 else:
     # 開発環境での警告を抑制
     SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+
+# Email settings
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@example.com')
+SERVER_EMAIL = config('SERVER_EMAIL', default='noreply@example.com')
+
+# Square API settings
+SQUARE_APPLICATION_ID = config('SQUARE_APPLICATION_ID', default='sandbox-sq0idb-Klqy4yYEmO_5_1Ea9msc3w')
+SQUARE_ACCESS_TOKEN = config('SQUARE_ACCESS_TOKEN', default='EAAAl5UHQGekKNOWGRkLWMJ7NTohmkFaFRZXL2wioazmvTMi-PcFmU9SHpwwdSSe')
+SQUARE_ENVIRONMENT = config('SQUARE_ENVIRONMENT', default='sandbox')  # sandbox or production
+SQUARE_LOCATION_ID = config('SQUARE_LOCATION_ID', default='')

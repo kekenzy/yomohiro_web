@@ -25,5 +25,14 @@ services:
       - DATABASE_URL=postgresql://reservation_user:reservation_password@db:5432/reservation_db
       - DEBUG=1
 
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      - ADMINER_DEFAULT_SERVER=db
+
 volumes:
   postgres_data:

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Location, TimeSlot, Reservation
+from .models import Location, TimeSlot, Reservation, Plan, MemberProfile, PaymentTransaction
 
 @admin.register(Location)
 class LocationAdmin(admin.ModelAdmin):
@@ -34,3 +34,26 @@ class ReservationAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+@admin.register(Plan)
+class PlanAdmin(admin.ModelAdmin):
+    list_display = ['name', 'price', 'is_default', 'is_active', 'created_at']
+    list_filter = ['is_active', 'is_default']
+    search_fields = ['name', 'description']
+    ordering = ['price']
+
+@admin.register(MemberProfile)
+class MemberProfileAdmin(admin.ModelAdmin):
+    list_display = ['full_name', 'user', 'gender', 'plan', 'created_at']
+    list_filter = ['gender', 'plan', 'created_at']
+    search_fields = ['full_name', 'user__username', 'user__email', 'phone']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at', 'updated_at']
+
+@admin.register(PaymentTransaction)
+class PaymentTransactionAdmin(admin.ModelAdmin):
+    list_display = ['id', 'amount', 'status', 'square_payment_id', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['square_payment_id', 'square_order_id', 'payment_link_id']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at', 'updated_at']

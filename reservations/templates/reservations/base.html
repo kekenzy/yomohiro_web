@@ -48,17 +48,32 @@
                 </ul>
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" href="{% url 'reservations:admin_dashboard' %}">
-                                <i class="fas fa-user-cog"></i> 管理画面
+                        <li class="nav-item dropdown">
+                            <a class="nav-link text-dark dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user"></i> {{ user.username }}
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" href="{% url 'reservations:logout' %}">
-                                <i class="fas fa-sign-out-alt"></i> ログアウト
-                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                <li><a class="dropdown-item" href="{% url 'reservations:user_profile' %}">
+                                    <i class="fas fa-user-circle"></i> ユーザー情報
+                                </a></li>
+                                {% if user.is_staff %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'reservations:admin_dashboard' %}">
+                                    <i class="fas fa-user-cog"></i> 管理画面
+                                </a></li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'reservations:logout' %}">
+                                    <i class="fas fa-sign-out-alt"></i> ログアウト
+                                </a></li>
+                            </ul>
                         </li>
                     {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" href="{% url 'reservations:member_registration' %}">
+                                <i class="fas fa-user-plus"></i> 会員登録
+                            </a>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link text-dark" href="{% url 'reservations:custom_login' %}">
                                 <i class="fas fa-sign-in-alt"></i> ログイン

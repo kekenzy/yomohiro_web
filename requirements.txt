@@ -2,3 +2,8 @@ Django==4.2.7
 python-decouple==3.8
 gunicorn==21.2.0
 whitenoise==6.6.0
+Pillow==10.0.0
+dj-database-url==2.1.0
+psycopg2-binary==2.9.9
+squareup==38.0.0.20241218
+squareup

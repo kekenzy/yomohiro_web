@@ -25,4 +25,10 @@ urlpatterns = [
     path('login/', views.custom_login, name='custom_login'),
     path('logout/', LogoutView.as_view(next_page='reservations:index'), name='logout'),
     path('api/calendar/events/', views.get_calendar_events, name='calendar_events'),
+    path('member-registration/', views.member_registration, name='member_registration'),
+    path('user-profile/', views.user_profile, name='user_profile'),
+    path('payment/create/', views.payment_create, name='payment_create'),
+    path('payment/create/<int:reservation_id>/', views.payment_create, name='payment_create_reservation'),
+    path('payment/complete/', views.payment_complete, name='payment_complete'),
+    path('webhooks/square/', views.square_webhook, name='square_webhook'),
 ]

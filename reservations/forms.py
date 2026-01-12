@@ -1,7 +1,10 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Location, TimeSlot, Reservation
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from .models import Location, TimeSlot, Reservation, Plan, MemberProfile
 from datetime import date
+import re
 
 class LocationForm(forms.ModelForm):
     """場所フォーム"""
@@ -126,3 +129,209 @@ class ReservationSearchForm(forms.Form):
         label="時間枠",
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+
+
+# 会員登録フォーム - Step1: 基本情報
+class MemberRegistrationStep1Form(forms.Form):
+    """会員登録 Step1: 基本情報"""
+    full_name = forms.CharField(
+        max_length=100,
+        label='氏名',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '氏名を入力してください'
+        })
+    )
+    gender = forms.ChoiceField(
+        choices=MemberProfile.GENDER_CHOICES,
+        label='性別',
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    birth_date = forms.DateField(
+        label='生年月日',
+        required=True,
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'form-control'
+        })
+    )
+    email = forms.EmailField(
+        label='メールアドレス',
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'example@email.com'
+        })
+    )
+    password = forms.CharField(
+        label='パスワード',
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': '英数字8文字以上'
+        }),
+        min_length=8
+    )
+    password_confirm = forms.CharField(
+        label='パスワード（確認）',
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'パスワードを再入力してください'
+        })
+    )
+    phone = forms.CharField(
+        max_length=15,
+        label='電話番号',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '例: 090-1234-5678'
+        })
+    )
+    postal_code = forms.CharField(
+        max_length=10,
+        label='郵便番号',
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '例: 123-4567',
+            'id': 'postal_code'
+        })
+    )
+    address = forms.CharField(
+        label='住所',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': '住所を入力してください',
+            'id': 'address'
+        })
+    )
+
+    def clean_password(self):
+        password = self.cleaned_data.get('password')
+        if password:
+            # 英数字8文字以上チェック
+            if len(password) < 8:
+                raise ValidationError('パスワードは8文字以上で入力してください。')
+            if not re.match(r'^[a-zA-Z0-9]+$', password):
+                raise ValidationError('パスワードは英数字のみ使用できます。')
+        return password
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        password_confirm = cleaned_data.get('password_confirm')
+
+        if password and password_confirm:
+            if password != password_confirm:
+                raise ValidationError('パスワードが一致しません。')
+
+        return cleaned_data
+
+
+# 会員登録フォーム - Step2: プラン選択
+class MemberRegistrationStep2Form(forms.Form):
+    """会員登録 Step2: プラン選択"""
+    plan = forms.ModelChoiceField(
+        queryset=Plan.objects.filter(is_active=True),
+        label='プラン',
+        required=True,
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
+        empty_label=None
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # デフォルトプランを設定
+        default_plan = Plan.objects.filter(is_default=True, is_active=True).first()
+        if default_plan:
+            self.fields['plan'].initial = default_plan
+
+
+# 会員登録フォーム - Step3: 顔写真登録
+class MemberRegistrationStep3Form(forms.Form):
+    """会員登録 Step3: 顔写真登録"""
+    photo = forms.ImageField(
+        label='顔写真',
+        required=False,
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/*',
+            'id': 'photo_upload'
+        })
+    )
+
+
+# 会員登録フォーム - Step4: クレジットカード情報
+class MemberRegistrationStep4Form(forms.Form):
+    """会員登録 Step4: クレジットカード情報"""
+    card_number = forms.CharField(
+        max_length=19,
+        label='クレジットカード番号',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '1234-5678-9012-3456',
+            'maxlength': '19',
+            'id': 'card_number'
+        })
+    )
+    card_expiry_month = forms.IntegerField(
+        label='有効期限（月）',
+        required=True,
+        min_value=1,
+        max_value=12,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'min': '1',
+            'max': '12',
+            'id': 'card_expiry_month'
+        })
+    )
+    card_expiry_year = forms.IntegerField(
+        label='有効期限（年）',
+        required=True,
+        min_value=date.today().year,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'min': str(date.today().year),
+            'id': 'card_expiry_year'
+        })
+    )
+    card_cvc = forms.CharField(
+        max_length=4,
+        label='CVC',
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': '123',
+            'maxlength': '4',
+            'id': 'card_cvc'
+        }),
+        min_length=3
+    )
+
+    def clean_card_number(self):
+        card_number = self.cleaned_data.get('card_number')
+        if card_number:
+            # ハイフンを除去して数字のみチェック
+            card_number_clean = card_number.replace('-', '').replace(' ', '')
+            if not card_number_clean.isdigit():
+                raise ValidationError('カード番号は数字のみで入力してください。')
+            if len(card_number_clean) < 13 or len(card_number_clean) > 19:
+                raise ValidationError('カード番号の桁数が正しくありません。')
+        return card_number
+
+    def clean_card_cvc(self):
+        card_cvc = self.cleaned_data.get('card_cvc')
+        if card_cvc:
+            if not card_cvc.isdigit():
+                raise ValidationError('CVCは数字のみで入力してください。')
+            if len(card_cvc) < 3 or len(card_cvc) > 4:
+                raise ValidationError('CVCは3桁または4桁で入力してください。')
+        return card_cvc

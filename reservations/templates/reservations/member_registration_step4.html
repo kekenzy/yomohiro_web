@@ -1,0 +1,178 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}会員登録 Step4: クレジットカード情報 - 予約システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .step-indicator {
+        margin-bottom: 2rem;
+    }
+    .step-item {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        margin: 0 0.25rem;
+        border-radius: 0.5rem;
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+    .step-item.active {
+        background-color: #ffc107;
+        color: #000;
+        font-weight: bold;
+    }
+    .step-item.completed {
+        background-color: #198754;
+        color: #fff;
+    }
+    .required-mark {
+        color: #dc3545;
+    }
+    .card-number-input {
+        letter-spacing: 0.1em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-user-plus"></i> 会員登録
+                </h2>
+            </div>
+            <div class="card-body">
+                <!-- ステップインジケーター -->
+                <div class="step-indicator text-center">
+                    {% for i in "1234"|make_list %}
+                        <span class="step-item {% if forloop.counter == step %}active{% elif forloop.counter < step %}completed{% endif %}">
+                            Step {{ forloop.counter }}
+                        </span>
+                    {% endfor %}
+                </div>
+
+                <h4 class="mb-4">Step4: クレジットカード情報</h4>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle"></i> エラーが発生しました
+                        </h5>
+                        <ul class="mb-0">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <form method="post" id="registration-step4-form">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.card_number.id_for_label }}" class="form-label">
+                            クレジットカード番号 <span class="required-mark">★</span>
+                        </label>
+                        {{ form.card_number }}
+                        {% if form.card_number.errors %}
+                            <div class="text-danger">
+                                {% for error in form.card_number.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">例: 1234-5678-9012-3456</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.card_expiry_month.id_for_label }}" class="form-label">
+                                    有効期限（月） <span class="required-mark">★</span>
+                                </label>
+                                {{ form.card_expiry_month }}
+                                {% if form.card_expiry_month.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.card_expiry_month.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.card_expiry_year.id_for_label }}" class="form-label">
+                                    有効期限（年） <span class="required-mark">★</span>
+                                </label>
+                                {{ form.card_expiry_year }}
+                                {% if form.card_expiry_year.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.card_expiry_year.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.card_cvc.id_for_label }}" class="form-label">
+                                    CVC <span class="required-mark">★</span>
+                                </label>
+                                {{ form.card_cvc }}
+                                {% if form.card_cvc.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.card_cvc.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="text-muted">カード裏面の3-4桁の番号</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <small>クレジットカード情報は暗号化して安全に保存されます。</small>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between mt-4">
+                        <a href="{% url 'reservations:member_registration' %}?step=3" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-arrow-left"></i> 戻る
+                        </a>
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            登録完了 <i class="fas fa-check"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // カード番号の自動フォーマット（ハイフン挿入）
+    const cardNumberInput = document.getElementById('{{ form.card_number.id_for_label }}');
+    if (cardNumberInput) {
+        cardNumberInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/[^0-9]/g, '');
+            let formattedValue = '';
+            for (let i = 0; i < value.length && i < 16; i++) {
+                if (i > 0 && i % 4 === 0) {
+                    formattedValue += '-';
+                }
+                formattedValue += value[i];
+            }
+            this.value = formattedValue;
+        });
+    }
+</script>
+{% endblock %}
+

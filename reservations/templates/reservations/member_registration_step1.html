@@ -1,0 +1,238 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}会員登録 Step1: 基本情報 - 予約システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .step-indicator {
+        margin-bottom: 2rem;
+    }
+    .step-item {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        margin: 0 0.25rem;
+        border-radius: 0.5rem;
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+    .step-item.active {
+        background-color: #ffc107;
+        color: #000;
+        font-weight: bold;
+    }
+    .step-item.completed {
+        background-color: #198754;
+        color: #fff;
+    }
+    .required-mark {
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-user-plus"></i> 会員登録
+                </h2>
+            </div>
+            <div class="card-body">
+                <!-- ステップインジケーター -->
+                <div class="step-indicator text-center">
+                    {% for i in "1234"|make_list %}
+                        <span class="step-item {% if forloop.counter == step %}active{% elif forloop.counter < step %}completed{% endif %}">
+                            Step {{ forloop.counter }}
+                        </span>
+                    {% endfor %}
+                </div>
+
+                <h4 class="mb-4">Step1: 基本情報</h4>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle"></i> エラーが発生しました
+                        </h5>
+                        <ul class="mb-0">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <form method="post" id="registration-step1-form">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.full_name.id_for_label }}" class="form-label">
+                            氏名 <span class="required-mark">★</span>
+                        </label>
+                        {{ form.full_name }}
+                        {% if form.full_name.errors %}
+                            <div class="text-danger">
+                                {% for error in form.full_name.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.gender.id_for_label }}" class="form-label">
+                            性別 <span class="required-mark">★</span>
+                        </label>
+                        {{ form.gender }}
+                        {% if form.gender.errors %}
+                            <div class="text-danger">
+                                {% for error in form.gender.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.birth_date.id_for_label }}" class="form-label">
+                            生年月日 <span class="required-mark">★</span>
+                        </label>
+                        {{ form.birth_date }}
+                        {% if form.birth_date.errors %}
+                            <div class="text-danger">
+                                {% for error in form.birth_date.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">
+                            メールアドレス <span class="required-mark">★</span>
+                        </label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="text-danger">
+                                {% for error in form.email.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.password.id_for_label }}" class="form-label">
+                                    パスワード <span class="required-mark">★</span>
+                                    <small class="text-muted">（英数字8文字以上）</small>
+                                </label>
+                                {{ form.password }}
+                                {% if form.password.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.password.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.password_confirm.id_for_label }}" class="form-label">
+                                    パスワード（確認） <span class="required-mark">★</span>
+                                </label>
+                                {{ form.password_confirm }}
+                                {% if form.password_confirm.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.password_confirm.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.phone.id_for_label }}" class="form-label">
+                            電話番号 <span class="required-mark">★</span>
+                        </label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                            <div class="text-danger">
+                                {% for error in form.phone.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.postal_code.id_for_label }}" class="form-label">
+                            郵便番号
+                        </label>
+                        {{ form.postal_code }}
+                        {% if form.postal_code.errors %}
+                            <div class="text-danger">
+                                {% for error in form.postal_code.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">郵便番号を入力すると住所が自動入力されます</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.address.id_for_label }}" class="form-label">
+                            住所
+                        </label>
+                        {{ form.address }}
+                        {% if form.address.errors %}
+                            <div class="text-danger">
+                                {% for error in form.address.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            次へ <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 郵便番号API連携
+    document.getElementById('{{ form.postal_code.id_for_label }}').addEventListener('blur', function() {
+        const postalCode = this.value.replace(/[^0-9]/g, '');
+        if (postalCode.length === 7) {
+            fetch(`https://api.zipaddress.net/?zipcode=${postalCode}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 200 && data.data) {
+                        const addressField = document.getElementById('{{ form.address.id_for_label }}');
+                        addressField.value = data.data.fullAddress || data.data.address || '';
+                    }
+                })
+                .catch(error => {
+                    console.error('郵便番号APIエラー:', error);
+                });
+        }
+    });
+</script>
+{% endblock %}
+

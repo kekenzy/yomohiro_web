@@ -1,0 +1,143 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}会員登録 Step2: プラン選択 - 予約システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .step-indicator {
+        margin-bottom: 2rem;
+    }
+    .step-item {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        margin: 0 0.25rem;
+        border-radius: 0.5rem;
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+    .step-item.active {
+        background-color: #ffc107;
+        color: #000;
+        font-weight: bold;
+    }
+    .step-item.completed {
+        background-color: #198754;
+        color: #fff;
+    }
+    .plan-option {
+        border: 2px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .plan-option:hover {
+        border-color: #ffc107;
+        background-color: #fff3cd;
+    }
+    .plan-option input[type="radio"]:checked + label {
+        font-weight: bold;
+    }
+    .plan-option input[type="radio"]:checked ~ .plan-details {
+        border-color: #ffc107;
+        background-color: #fff3cd;
+    }
+    .plan-details {
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-user-plus"></i> 会員登録
+                </h2>
+            </div>
+            <div class="card-body">
+                <!-- ステップインジケーター -->
+                <div class="step-indicator text-center">
+                    {% for i in "1234"|make_list %}
+                        <span class="step-item {% if forloop.counter == step %}active{% elif forloop.counter < step %}completed{% endif %}">
+                            Step {{ forloop.counter }}
+                        </span>
+                    {% endfor %}
+                </div>
+
+                <h4 class="mb-4">Step2: プラン選択</h4>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle"></i> エラーが発生しました
+                        </h5>
+                        <ul class="mb-0">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <form method="post" id="registration-step2-form">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">プラン <span class="text-danger">★</span></label>
+                        {% for plan in plans %}
+                            <div class="plan-option">
+                                <input type="radio" 
+                                       name="plan" 
+                                       id="plan_{{ plan.id }}" 
+                                       value="{{ plan.id }}" 
+                                       class="form-check-input"
+                                       {% if form.plan.value == plan.id %}checked
+                                       {% elif not form.plan.value and plan.is_default %}checked
+                                       {% elif form.plan.initial == plan.id %}checked
+                                       {% elif not form.plan.initial and plan.is_default %}checked{% endif %}>
+                                <label for="plan_{{ plan.id }}" class="form-label ms-2">
+                                    {{ plan.name }}
+                                    {% if plan.is_default %}
+                                        <span class="badge bg-warning text-dark">デフォルト</span>
+                                    {% endif %}
+                                </label>
+                                <div class="plan-details">
+                                    <p class="mb-1">{{ plan.description|default:"説明なし" }}</p>
+                                    <p class="mb-0">
+                                        <strong>価格: ¥{{ plan.price|default:0|floatformat:0 }}</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% if form.plan.errors %}
+                            <div class="text-danger">
+                                {% for error in form.plan.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <a href="{% url 'reservations:member_registration' %}?step=1" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-arrow-left"></i> 戻る
+                        </a>
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            次へ <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
