@@ -94,6 +94,13 @@ python manage.py migrate --noinput
 echo "📁 静的ファイルを収集中..."
 python manage.py collectstatic --noinput
 
+# 静的ファイルのパーミッションを設定
+echo "🔐 静的ファイルのパーミッションを設定中..."
+sudo chmod -R 755 /home/ubuntu/yomohiro_web/staticfiles
+sudo chown -R ubuntu:www-data /home/ubuntu/yomohiro_web/staticfiles
+sudo chmod 755 /home/ubuntu
+sudo chmod 755 /home/ubuntu/yomohiro_web
+
 # ログディレクトリを作成
 mkdir -p logs
 chmod 755 logs
