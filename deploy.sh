@@ -52,6 +52,11 @@ cd /home/ubuntu/yomohiro_web || {
 
 # Gitから最新のコードを取得
 echo "📥 最新のコードを取得中..."
+# ローカルの変更がある場合はstashしてからpull
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "📦 ローカルの変更をstash中..."
+    git stash
+fi
 git pull origin main || {
     echo "⚠️  git pullに失敗しました。手動で確認してください。"
     exit 1
