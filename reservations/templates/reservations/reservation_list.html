@@ -35,6 +35,10 @@
     .fc-event-title {
         font-weight: bold;
     }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(255, 193, 7, 0.1);
+    }
 </style>
 {% endblock %}
 
@@ -124,42 +128,36 @@
                                     <th>時間</th>
                                     <th>ステータス</th>
                                     <th>作成日</th>
-                                    <th>操作</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for reservation in page_obj %}
-                                    <tr>
+                                {% for group in page_obj %}
+                                    {% with first_reservation=group.reservations|first %}
+                                    <tr style="cursor: pointer;" onclick="window.location.href='{% url 'reservations:reservation_detail' first_reservation.id %}'">
                                         <td>
-                                            <strong>{{ reservation.customer_name }}</strong>
-                                            <br><small class="text-muted">{{ reservation.customer_email }}</small>
+                                            <strong>{{ group.customer_name }}</strong>
+                                            <br><small class="text-muted">{{ group.customer_email }}</small>
                                         </td>
-                                        <td>{{ reservation.location.name }}</td>
-                                        <td>{{ reservation.date|date:"m/d" }}</td>
-                                        <td>{{ reservation.time_slot.start_time|time:"H:i" }} - {{ reservation.time_slot.end_time|time:"H:i" }}</td>
+                                        <td>{{ group.location.name }}</td>
+                                        <td>{{ group.date|date:"m/d" }}</td>
                                         <td>
-                                            {% if reservation.status == 'confirmed' %}
+                                            {{ group.start_time|time:"H:i" }} - {{ group.end_time|time:"H:i" }}
+                                            {% if group.reservations|length > 1 %}
+                                                <br><small class="text-muted">({{ group.reservations|length }}枠)</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if group.status == 'confirmed' %}
                                                 <span class="badge bg-success">確認済み</span>
-                                            {% elif reservation.status == 'pending' %}
+                                            {% elif group.status == 'pending' %}
                                                 <span class="badge bg-warning text-dark">保留中</span>
                                             {% else %}
                                                 <span class="badge bg-danger">キャンセル</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ reservation.created_at|date:"m/d H:i" }}</td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <a href="{% url 'reservations:reservation_detail' reservation.pk %}" class="btn btn-outline-warning btn-sm">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                {% if user.is_authenticated %}
-                                                    <a href="{% url 'reservations:reservation_edit' reservation.pk %}" class="btn btn-outline-warning btn-sm">
-                                                        <i class="fas fa-edit"></i>
-                                                    </a>
-                                                {% endif %}
-                                            </div>
-                                        </td>
+                                        <td>{{ first_reservation.created_at|date:"m/d H:i" }}</td>
                                     </tr>
+                                    {% endwith %}
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -241,23 +239,15 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             events: '{% url "reservations:calendar_events" %}',
             eventClick: function(info) {
-                // イベントクリック時の処理
+                // イベントクリック時に予約詳細画面に遷移
                 const event = info.event;
                 const props = event.extendedProps;
                 
-                let details = `
-                    <strong>予約詳細</strong><br>
-                    お客様名: ${props.customer_name}<br>
-                    場所: ${props.location}<br>
-                    時間: ${event.start.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})} - ${event.end.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})}<br>
-                    ステータス: ${props.status}<br>
-                `;
-                
-                if (props.notes) {
-                    details += `備考: ${props.notes}`;
+                // 最初の予約IDを使用して詳細画面に遷移
+                if (props.reservation_ids && props.reservation_ids.length > 0) {
+                    const reservationId = props.reservation_ids[0];
+                    window.location.href = `/reservations/${reservationId}/`;
                 }
-                
-                alert(details);
             },
             eventDidMount: function(info) {
                 // イベントのツールチップを設定

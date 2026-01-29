@@ -1,0 +1,84 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}予約登録完了 - 予約システム{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-check-circle"></i> 予約を登録しました
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 予約を登録しました。決済を完了してください。
+                </div>
+
+                <div class="mb-4">
+                    <h5 class="border-bottom pb-2 mb-3">
+                        <i class="fas fa-calendar-alt"></i> 予約情報
+                    </h5>
+                    <table class="table table-bordered">
+                        <tr>
+                            <th class="bg-light" style="width: 30%;">場所</th>
+                            <td>{{ reservation.location.name }}</td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">予約日</th>
+                            <td>{{ reservation.date|date:"Y年m月d日" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">時間</th>
+                            <td>{{ reservation.time_slot.start_time|time:"H:i" }} - {{ reservation.time_slot.end_time|time:"H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">合計金額</th>
+                            <td class="text-end fs-5 fw-bold">{{ total_amount|floatformat:0 }}円</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <strong>決済を完了してください</strong><br>
+                    下のボタンをクリックして、決済画面でお支払いを完了してください。
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{% url 'reservations:reservation_detail' reservation.pk %}" class="btn btn-secondary me-md-2">
+                        <i class="fas fa-eye"></i> 予約詳細を見る
+                    </a>
+                    <button type="button" class="btn btn-warning btn-lg" onclick="openPaymentWindow()">
+                        <i class="fas fa-credit-card"></i> 決済を完了する（新しいタブで開く）
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openPaymentWindow() {
+    // 新しいタブで決済画面を開く
+    window.open('{{ payment_link_url }}', '_blank');
+    
+    // ボタンを無効化
+    const button = event.target.closest('button');
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 決済画面を開きました';
+    }
+}
+</script>
+{% endblock %}
+
+
+
+
+
+
+

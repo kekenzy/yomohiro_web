@@ -65,6 +65,14 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
+**デフォルトの管理者アカウント（Docker環境で既に作成済み）:**
+- **ユーザー名:** `admin`
+- **パスワード:** `admin123`
+- **メールアドレス:** `admin@example.com`
+- **アクセスURL:** http://localhost:8001/admin/
+
+> ⚠️ **注意:** 本番環境では、必ず強力なパスワードに変更してください。
+
 6. サンプルデータを作成（オプション）
 ```bash
 python manage.py create_sample_data
@@ -95,6 +103,14 @@ docker-compose exec web python manage.py migrate
 ```bash
 docker-compose exec web python manage.py createsuperuser
 ```
+
+**デフォルトの管理者アカウント（既に作成済み）:**
+- **ユーザー名:** `admin`
+- **パスワード:** `admin123`
+- **メールアドレス:** `admin@example.com`
+- **アクセスURL:** http://localhost:8001/admin/
+
+> ⚠️ **注意:** 本番環境では、必ず強力なパスワードに変更してください。
 
 4. サンプルデータを作成（オプション）
 ```bash

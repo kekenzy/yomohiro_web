@@ -60,13 +60,42 @@
                 <form method="post" id="reservation-form">
                     {% csrf_token %}
                     
+                    {% if is_multi_date and multi_date_details %}
+                    <!-- 複数日の予約の場合：選択済みの予約情報を表示 -->
+                    <div class="alert alert-info mb-4">
+                        <h5><i class="fas fa-calendar-week"></i> 選択された予約</h5>
+                        <div class="mt-3">
+                            {% for date_detail in multi_date_details %}
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <strong>{{ date_detail.date|date:"Y年m月d日 (D)" }}</strong>
+                                    <ul class="mb-0 mt-2">
+                                        {% for time_slot in date_detail.time_slots %}
+                                        <li>{{ time_slot.start_time }} - {{ time_slot.end_time }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <p class="mb-0 mt-2"><small>お客様情報を入力して、予約を確定してください。</small></p>
+                    </div>
+                    {% else %}
+                    <!-- 単一日の予約の場合：場所・日付・時間枠を選択 -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="{{ form.location.id_for_label }}" class="form-label">
                                     <i class="fas fa-map-marker-alt"></i> 場所 <span class="text-danger">*</span>
                                 </label>
-                                {{ form.location }}
+                                <div class="input-group">
+                                    {{ form.location }}
+                                    {% if form.location.value %}
+                                        <a href="{% url 'reservations:reservation_weekly_calendar' %}?location={{ form.location.value }}" class="btn btn-outline-warning" type="button" title="週間カレンダーで選択">
+                                            <i class="fas fa-calendar-week"></i> 週間カレンダー
+                                        </a>
+                                    {% endif %}
+                                </div>
                                 {% if form.location.errors %}
                                     <div class="text-danger">
                                         {% for error in form.location.errors %}
@@ -98,23 +127,25 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="{{ form.time_slot.id_for_label }}" class="form-label">
+                        <label class="form-label">
                             <i class="fas fa-clock"></i> 時間枠 <span class="text-danger">*</span>
                         </label>
                         <div id="time-slots" class="row">
                             <div class="col-12">
-                                <p class="text-muted">場所と日付を選択すると、利用可能な時間枠が表示されます。</p>
+                                <p class="text-muted">場所と日付を選択すると、利用可能な時間枠が表示されます。クリックで複数選択できます。</p>
                             </div>
                         </div>
-                        {{ form.time_slot }}
-                        {% if form.time_slot.errors %}
+                        <!-- 選択された時間枠をhidden inputとして保持 -->
+                        <div id="time-slots-hidden-inputs"></div>
+                        {% if form.time_slots.errors %}
                             <div class="text-danger">
-                                {% for error in form.time_slot.errors %}
+                                {% for error in form.time_slots.errors %}
                                     <small>{{ error }}</small>
                                 {% endfor %}
                             </div>
                         {% endif %}
                     </div>
+                    {% endif %}
 
                     <div class="row">
                         <div class="col-md-4">
@@ -183,7 +214,7 @@
                             <i class="fas fa-arrow-left"></i> 戻る
                         </a>
                         <button type="submit" class="btn btn-warning">
-                            <i class="fas fa-save"></i> 予約を確定
+                            <i class="fas fa-check-circle"></i> 予約確定へ
                         </button>
                     </div>
                 </form>
@@ -195,10 +226,40 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // 複数日の予約の場合は、場所・日付・時間枠の処理をスキップ
+    {% if is_multi_date and multi_date_details %}
+    // 複数日の予約の場合は何もしない（お客様情報のみ入力）
+    return;
+    {% endif %}
+    
     const locationSelect = document.getElementById('{{ form.location.id_for_label }}');
     const dateInput = document.getElementById('{{ form.date.id_for_label }}');
-    const timeSlotSelect = document.getElementById('{{ form.time_slot.id_for_label }}');
     const timeSlotsContainer = document.getElementById('time-slots');
+    const timeSlotsHiddenInputs = document.getElementById('time-slots-hidden-inputs');
+    const form = document.getElementById('reservation-form');
+    let myReservations = {}; // 自分の既存予約情報を保持 {time_slot_id: reservation_id}
+    let selectedTimeSlots = new Set(); // 選択された時間枠IDを保持
+    
+    // 編集モードの初期時間枠ID（テンプレートから取得）
+    {% if initial_time_slot_ids %}
+    const initialTimeSlotIds = [{% for slot_id in initial_time_slot_ids %}{{ slot_id }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+    {% else %}
+    const initialTimeSlotIds = [];
+    {% endif %}
+
+    function updateHiddenInputs() {
+        // 既存のhidden inputを削除
+        timeSlotsHiddenInputs.innerHTML = '';
+        
+        // 選択された時間枠をhidden inputとして追加
+        selectedTimeSlots.forEach(slotId => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'time_slots';
+            input.value = slotId;
+            timeSlotsHiddenInputs.appendChild(input);
+        });
+    }
 
     function checkAvailability() {
         const locationId = locationSelect.value;
@@ -213,14 +274,45 @@ document.addEventListener('DOMContentLoaded', function() {
                         return;
                     }
 
+                    // 自分の既存予約情報を保存
+                    myReservations = {};
+                    if (data.my_reservations) {
+                        data.my_reservations.forEach(reservation => {
+                            myReservations[reservation.time_slot_id] = reservation.id;
+                        });
+                    }
+
+                    // 既存予約を選択状態に設定
+                    selectedTimeSlots.clear();
+                    if (data.my_reservation_slot_ids) {
+                        data.my_reservation_slot_ids.forEach(slotId => {
+                            selectedTimeSlots.add(slotId.toString());
+                        });
+                    }
+                    // 編集モードの場合、初期時間枠IDも選択状態に追加
+                    if (initialTimeSlotIds.length > 0) {
+                        initialTimeSlotIds.forEach(slotId => {
+                            selectedTimeSlots.add(slotId.toString());
+                        });
+                    }
+                    updateHiddenInputs();
+
                     let html = '';
                     if (data.available_slots.length > 0) {
-                        html = '<div class="col-12"><h6>利用可能な時間枠:</h6></div>';
+                        html = '<div class="col-12"><h6>利用可能な時間枠（クリックで選択）:</h6></div>';
                         data.available_slots.forEach(slot => {
+                            const slotId = slot.id;
+                            const isMyReservation = data.my_reservation_slot_ids && data.my_reservation_slot_ids.includes(slotId);
+                            const isInitialSelected = initialTimeSlotIds.includes(slotId);
+                            const isSelected = selectedTimeSlots.has(slotId.toString()) || isInitialSelected;
+                            const reservationClass = isMyReservation ? 'border-primary' : '';
+                            const selectedClass = isSelected ? 'selected' : '';
+                            
                             html += `
                                 <div class="col-md-4 mb-2">
-                                    <div class="time-slot-option card p-2 text-center" data-slot-id="${slot.id}">
+                                    <div class="time-slot-option card p-2 text-center ${reservationClass} ${selectedClass}" data-slot-id="${slotId}">
                                         <strong>${slot.start_time} - ${slot.end_time}</strong>
+                                        ${isMyReservation ? '<small class="text-primary d-block">（既存予約）</small>' : ''}
                                     </div>
                                 </div>
                             `;
@@ -233,9 +325,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     // 時間枠選択のイベントリスナーを追加
                     document.querySelectorAll('.time-slot-option').forEach(option => {
                         option.addEventListener('click', function() {
-                            document.querySelectorAll('.time-slot-option').forEach(opt => opt.classList.remove('selected'));
-                            this.classList.add('selected');
-                            timeSlotSelect.value = this.dataset.slotId;
+                            const slotId = this.dataset.slotId;
+                            
+                            if (selectedTimeSlots.has(slotId)) {
+                                // 選択解除
+                                selectedTimeSlots.delete(slotId);
+                                this.classList.remove('selected');
+                            } else {
+                                // 選択
+                                selectedTimeSlots.add(slotId);
+                                this.classList.add('selected');
+                            }
+                            
+                            updateHiddenInputs();
                         });
                     });
                 })
@@ -245,18 +347,71 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         } else {
             timeSlotsContainer.innerHTML = '<div class="col-12"><p class="text-muted">場所と日付を選択すると、利用可能な時間枠が表示されます。</p></div>';
+            selectedTimeSlots.clear();
+            updateHiddenInputs();
         }
     }
 
-    // イベントリスナーを追加
-    locationSelect.addEventListener('change', checkAvailability);
+    // 場所選択時に自動的に週間カレンダーに遷移（URLパラメータで制御可能）
+    locationSelect.addEventListener('change', function() {
+        const locationId = this.value;
+        const urlParams = new URLSearchParams(window.location.search);
+        const useWeekly = urlParams.get('use_weekly');
+        
+        // use_weekly=falseが指定されている場合は通常のフォームを使用
+        if (useWeekly === 'false') {
+            checkAvailability();
+            return;
+        }
+        
+        // 場所が選択された場合、自動的に週間カレンダーに遷移
+        if (locationId) {
+            window.location.href = `{% url 'reservations:reservation_weekly_calendar' %}?location=${locationId}`;
+        } else {
+            // 場所が選択解除された場合は通常の処理
+            checkAvailability();
+        }
+    });
+    
+    // 日付選択時は通常の処理
     dateInput.addEventListener('change', checkAvailability);
 
     // ページ読み込み時に場所が既に選択されている場合、自動的に時間枠をチェック
     if (locationSelect.value && dateInput.value) {
         checkAvailability();
+        
+        // 編集モードの場合、初期時間枠を選択状態にする（checkAvailability完了後）
+        if (initialTimeSlotIds.length > 0) {
+            setTimeout(() => {
+                initialTimeSlotIds.forEach(slotId => {
+                    selectedTimeSlots.add(slotId.toString());
+                    const option = document.querySelector(`.time-slot-option[data-slot-id="${slotId}"]`);
+                    if (option) {
+                        option.classList.add('selected');
+                    }
+                });
+                updateHiddenInputs();
+            }, 800);
+        }
     }
+
+    // フォーム送信時の処理
+    form.addEventListener('submit', function(e) {
+        // 時間枠が選択されていない場合
+        if (selectedTimeSlots.size === 0) {
+            {% if initial_time_slot_ids %}
+            // 編集モードの場合：エラーメッセージを表示（削除は削除ボタンを使用）
+            e.preventDefault();
+            alert('時間枠を選択してください。');
+            {% else %}
+            // 新規予約の場合：時間枠を選択してくださいと警告
+            e.preventDefault();
+            alert('時間枠を選択してください。');
+            {% endif %}
+        }
+    });
 });
 </script>
 {% endblock %}
+
 

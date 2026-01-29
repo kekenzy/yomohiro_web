@@ -3,36 +3,38 @@
 {% block title %}{{ title }} - U-街プラザ 東西南北館{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-tags text-warning"></i> {{ title }}
+        </h1>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-info-circle"></i> {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
     <div class="col-md-8">
         <div class="card border-warning">
             <div class="card-header bg-warning text-dark">
-                <h2 class="card-title mb-0">
-                    <i class="fas fa-map-marker-alt text-dark"></i> {{ title }}
-                </h2>
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-edit text-dark"></i> プラン情報
+                </h5>
             </div>
             <div class="card-body">
-                {% if form.errors %}
-                    <div class="alert alert-danger">
-                        <h5 class="alert-heading">
-                            <i class="fas fa-exclamation-triangle"></i> エラーが発生しました
-                        </h5>
-                        <ul class="mb-0">
-                            {% for field, errors in form.errors.items %}
-                                {% for error in errors %}
-                                    <li>{{ error }}</li>
-                                {% endfor %}
-                            {% endfor %}
-                        </ul>
-                    </div>
-                {% endif %}
-                
                 <form method="post">
                     {% csrf_token %}
                     
                     <div class="mb-3">
                         <label for="{{ form.name.id_for_label }}" class="form-label">
-                            <i class="fas fa-building"></i> 場所名 <span class="text-danger">*</span>
+                            <i class="fas fa-tag"></i> プラン名 <span class="text-danger">*</span>
                         </label>
                         {{ form.name }}
                         {% if form.name.errors %}
@@ -43,10 +45,10 @@
                             </div>
                         {% endif %}
                     </div>
-
+                    
                     <div class="mb-3">
                         <label for="{{ form.description.id_for_label }}" class="form-label">
-                            <i class="fas fa-info-circle"></i> 説明
+                            <i class="fas fa-align-left"></i> 説明
                         </label>
                         {{ form.description }}
                         {% if form.description.errors %}
@@ -57,41 +59,43 @@
                             </div>
                         {% endif %}
                     </div>
-
+                    
                     <div class="mb-3">
-                        <label for="{{ form.capacity.id_for_label }}" class="form-label">
-                            <i class="fas fa-users"></i> 定員 <span class="text-danger">*</span>
+                        <label for="{{ form.price.id_for_label }}" class="form-label">
+                            <i class="fas fa-yen-sign"></i> 価格 <span class="text-danger">*</span>
                         </label>
-                        {{ form.capacity }}
-                        {% if form.capacity.errors %}
+                        {{ form.price }}
+                        {% if form.price.errors %}
                             <div class="text-danger">
-                                {% for error in form.capacity.errors %}
+                                {% for error in form.price.errors %}
                                     <small>{{ error }}</small>
                                 {% endfor %}
                             </div>
                         {% endif %}
                     </div>
-
+                    
                     <div class="mb-3">
-                        <label for="{{ form.price_per_30min.id_for_label }}" class="form-label">
-                            <i class="fas fa-yen-sign"></i> 30分あたりの金額（円）
-                        </label>
-                        {{ form.price_per_30min }}
-                        {% if form.price_per_30min.errors %}
+                        <div class="form-check">
+                            {{ form.is_default }}
+                            <label class="form-check-label" for="{{ form.is_default.id_for_label }}">
+                                <i class="fas fa-star"></i> デフォルトプラン
+                            </label>
+                        </div>
+                        {% if form.is_default.errors %}
                             <div class="text-danger">
-                                {% for error in form.price_per_30min.errors %}
+                                {% for error in form.is_default.errors %}
                                     <small>{{ error }}</small>
                                 {% endfor %}
                             </div>
                         {% endif %}
-                        <small class="text-muted">30分単位の料金を入力してください（例: 1000）</small>
+                        <small class="form-text text-muted">デフォルトプランは1つだけ設定できます。</small>
                     </div>
-
+                    
                     <div class="mb-3">
                         <div class="form-check">
                             {{ form.is_active }}
                             <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                                <i class="fas fa-toggle-on"></i> 有効
+                                <i class="fas fa-check-circle"></i> 有効
                             </label>
                         </div>
                         {% if form.is_active.errors %}
@@ -102,10 +106,18 @@
                             </div>
                         {% endif %}
                     </div>
-
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'reservations:location_management' %}" class="btn btn-secondary me-md-2">
-                            <i class="fas fa-arrow-left"></i> 戻る
+                        <a href="{% url 'reservations:plan_management' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> キャンセル
                         </a>
                         <button type="submit" class="btn btn-warning">
                             <i class="fas fa-save"></i> 保存
@@ -117,3 +129,4 @@
     </div>
 </div>
 {% endblock %}
+

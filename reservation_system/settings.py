@@ -51,6 +51,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'reservations.middleware.SuperuserRequiredMiddleware',  # スーパーユーザー制限ミドルウェア
 ]
 
 ROOT_URLCONF = 'reservation_system.urls'
@@ -172,4 +173,4 @@ SERVER_EMAIL = config('SERVER_EMAIL', default='noreply@example.com')
 SQUARE_APPLICATION_ID = config('SQUARE_APPLICATION_ID', default='sandbox-sq0idb-Klqy4yYEmO_5_1Ea9msc3w')
 SQUARE_ACCESS_TOKEN = config('SQUARE_ACCESS_TOKEN', default='EAAAl5UHQGekKNOWGRkLWMJ7NTohmkFaFRZXL2wioazmvTMi-PcFmU9SHpwwdSSe')
 SQUARE_ENVIRONMENT = config('SQUARE_ENVIRONMENT', default='sandbox')  # sandbox or production
-SQUARE_LOCATION_ID = config('SQUARE_LOCATION_ID', default='')
+SQUARE_LOCATION_ID = config('SQUARE_LOCATION_ID', default='LHQHHBA22J5E1')

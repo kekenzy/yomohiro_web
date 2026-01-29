@@ -111,7 +111,7 @@
                 </h1>
                 <p class="lead mb-4">快適な空間で素晴らしい時間をお過ごしください</p>
                 <div class="d-flex justify-content-center gap-3 flex-wrap">
-                    {% if user.is_authenticated %}
+                    {% if user.is_authenticated and user.is_superuser %}
                         <!-- 管理者向けメニュー -->
                         <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light btn-lg">
                             <i class="fas fa-calendar-plus"></i> 新規予約作成
@@ -121,6 +121,11 @@
                         </a>
                         <a href="{% url 'reservations:location_list' %}" class="btn btn-light btn-lg">
                             <i class="fas fa-map-marker-alt"></i> 場所管理
+                        </a>
+                    {% elif user.is_authenticated %}
+                        <!-- 一般ユーザー向けメニュー -->
+                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light btn-lg">
+                            <i class="fas fa-calendar-plus"></i> 予約
                         </a>
                     {% else %}
                         <!-- 一般ユーザー向けメニュー -->
@@ -134,7 +139,7 @@
     </div>
 </div>
 
-{% if user.is_authenticated %}
+{% if user.is_authenticated and user.is_superuser %}
 <!-- 管理者向けダッシュボード -->
 <div class="container mb-5">
     <div class="row">
@@ -224,6 +229,62 @@
 
 <!-- メインコンテンツセクション -->
 <div class="container">
+    <!-- ログインユーザーの予約一覧 -->
+    {% if user.is_authenticated %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list text-dark"></i> マイ予約一覧
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if user_reservations %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>日付</th>
+                                    <th>場所</th>
+                                    <th>時間</th>
+                                    <th>ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for group in user_reservations %}
+                                <tr style="cursor: pointer;" onclick="window.location.href='{% url 'reservations:reservation_detail' group.reservations.0.id %}'">
+                                    <td>{{ group.date|date:"m/d" }}</td>
+                                    <td>{{ group.location.name }}</td>
+                                    <td>
+                                        {{ group.start_time|time:"H:i" }} - {{ group.end_time|time:"H:i" }}
+                                        {% if group.reservations|length > 1 %}
+                                            <br><small class="text-muted">({{ group.reservations|length }}枠)</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if group.status == 'confirmed' %}
+                                            <span class="badge bg-success">確認済み</span>
+                                        {% elif group.status == 'pending' %}
+                                            <span class="badge bg-warning text-dark">保留中</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">キャンセル</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">予約がありません</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
     <div class="row">
         <!-- 場所メニューセクション -->
         <div class="col-lg-8">
@@ -272,10 +333,10 @@
 
         <!-- カレンダーセクション -->
         <div class="col-lg-4">
-            <div class="card border-warning h-100">
+            <div class="card border-warning h-100 mb-4">
                 <div class="card-header bg-warning text-dark">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-calendar-alt text-dark"></i> 予約カレンダー
+                        <i class="fas fa-calendar-alt text-dark"></i> U-街プラザの予約
                     </h5>
                 </div>
                 <div class="card-body">
@@ -357,7 +418,7 @@
             <div class="card border-warning">
                 <div class="card-body">
                     <div class="ratio ratio-4x3">
-                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3323.1234567890123!2d130.12345678901234!3d33.12345678901234!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzPCsDA3JzM0LjQiTiAxMzDCsDA3JzM0LjQiRQ!5e0!3m2!1sja!2sjp!4v1234567890123" 
+                        <iframe src="https://www.google.com/maps?q=福岡県福岡市中央区唐人町1丁目10-1唐人町パークハウス102&output=embed&hl=ja" 
                                 style="border:0;" allowfullscreen="" loading="lazy" 
                                 title="U-街プラザ 東西南北館 - 唐人町パークハウス102"></iframe>
                     </div>
@@ -401,23 +462,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 today: '今日'
             },
             events: '{% url "reservations:calendar_events" %}',
+            dateClick: function(info) {
+                // 日付クリック時に新規予約画面に遷移（選択した日付をクエリパラメータとして渡す）
+                const clickedDate = info.dateStr; // YYYY-MM-DD形式
+                window.location.href = `{% url 'reservations:reservation_create' %}?date=${clickedDate}`;
+            },
             eventClick: function(info) {
-                // イベントクリック時の処理
+                // イベントクリック時に予約詳細画面に遷移
                 const event = info.event;
                 const props = event.extendedProps;
                 
-                let details = `
-                    <strong>予約詳細</strong><br>
-                    場所: ${props.location}<br>
-                    時間: ${event.start.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})} - ${event.end.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})}<br>
-                    ステータス: ${props.status}<br>
-                `;
-                
-                if (props.notes) {
-                    details += `備考: ${props.notes}`;
+                // 最初の予約IDを使用して詳細画面に遷移
+                if (props.reservation_ids && props.reservation_ids.length > 0) {
+                    const reservationId = props.reservation_ids[0];
+                    window.location.href = `/reservations/${reservationId}/`;
                 }
-                
-                alert(details);
             },
             eventDidMount: function(info) {
                 // イベントのツールチップを設定

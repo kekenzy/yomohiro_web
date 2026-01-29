@@ -10,22 +10,30 @@ class LocationForm(forms.ModelForm):
     """場所フォーム"""
     class Meta:
         model = Location
-        fields = ['name', 'description', 'capacity', 'is_active']
+        fields = ['name', 'description', 'capacity', 'price_per_30min', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '場所名を入力してください'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '場所の説明を入力してください'}),
             'capacity': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'price_per_30min': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 1, 'placeholder': '30分あたりの金額を入力してください'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
 class ReservationForm(forms.ModelForm):
     """予約フォーム"""
+    time_slots = forms.ModelMultipleChoiceField(
+        queryset=TimeSlot.objects.filter(is_active=True),
+        label='時間枠',
+        required=True,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+        help_text='複数の時間枠を選択できます'
+    )
+    
     class Meta:
         model = Reservation
-        fields = ['location', 'time_slot', 'date', 'customer_name', 'customer_email', 'customer_phone', 'notes']
+        fields = ['location', 'date', 'customer_name', 'customer_email', 'customer_phone', 'notes']
         widgets = {
             'location': forms.Select(attrs={'class': 'form-select'}),
-            'time_slot': forms.Select(attrs={'class': 'form-select'}),
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'customer_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'お客様名を入力してください'}),
             'customer_email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'example@email.com'}),
@@ -34,38 +42,53 @@ class ReservationForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        self.is_multi_date = kwargs.pop('is_multi_date', False)
         super().__init__(*args, **kwargs)
         # 有効な場所と時間枠のみを表示
         self.fields['location'].queryset = Location.objects.filter(is_active=True)
-        self.fields['time_slot'].queryset = TimeSlot.objects.filter(is_active=True)
+        self.fields['time_slots'].queryset = TimeSlot.objects.filter(is_active=True)
+        
+        # 複数日の予約の場合、場所・日付・時間枠を必須にしない
+        if self.is_multi_date:
+            self.fields['location'].required = False
+            self.fields['date'].required = False
+            self.fields['time_slots'].required = False
+        
+        # ログイン済みユーザーの場合、MemberProfileから情報を自動入力
+        if self.user and self.user.is_authenticated:
+            try:
+                profile = MemberProfile.objects.get(user=self.user)
+                self.fields['customer_name'].initial = profile.full_name
+                self.fields['customer_email'].initial = self.user.email
+                self.fields['customer_phone'].initial = profile.phone
+            except MemberProfile.DoesNotExist:
+                # MemberProfileが存在しない場合は、Userの情報を使用
+                self.fields['customer_name'].initial = self.user.get_full_name() or self.user.username
+                self.fields['customer_email'].initial = self.user.email
 
     def clean(self):
         cleaned_data = super().clean()
+        
+        # 複数日の予約の場合は、場所・日付・時間枠のバリデーションをスキップ
+        if self.is_multi_date:
+            # お客様情報のみをチェック
+            if not cleaned_data.get('customer_name'):
+                raise ValidationError('お客様名を入力してください。')
+            if not cleaned_data.get('customer_email'):
+                raise ValidationError('メールアドレスを入力してください。')
+            if not cleaned_data.get('customer_phone'):
+                raise ValidationError('電話番号を入力してください。')
+            return cleaned_data
+        
+        # 単一日の予約の場合の既存のバリデーション
         location = cleaned_data.get('location')
-        time_slot = cleaned_data.get('time_slot')
+        time_slots = cleaned_data.get('time_slots')
         reservation_date = cleaned_data.get('date')
-
-        if location and time_slot and reservation_date:
-            # 同じ場所、時間枠、日付の予約が既に存在するかチェック
-            existing_reservation = Reservation.objects.filter(
-                location=location,
-                time_slot=time_slot,
-                date=reservation_date,
-                status__in=['confirmed', 'pending']
-            ).exclude(pk=self.instance.pk if self.instance else None)
-
-            if existing_reservation.exists():
-                raise ValidationError('この場所と時間枠は既に予約されています。')
-
-            # 過去の日付は予約できない
-            if reservation_date < date.today():
-                raise ValidationError('過去の日付は予約できません。')
 
         # 必須フィールドのチェック
         if not location:
             raise ValidationError('場所を選択してください。')
-        if not time_slot:
-            raise ValidationError('時間枠を選択してください。')
         if not reservation_date:
             raise ValidationError('予約日を選択してください。')
         if not cleaned_data.get('customer_name'):
@@ -74,6 +97,51 @@ class ReservationForm(forms.ModelForm):
             raise ValidationError('メールアドレスを入力してください。')
         if not cleaned_data.get('customer_phone'):
             raise ValidationError('電話番号を入力してください。')
+
+        # 時間枠のチェック
+        # 編集モード（self.instanceが存在する）の場合、時間枠は必須
+        if self.instance and not time_slots:
+            raise ValidationError('時間枠を選択してください。')
+        
+        # 新規予約の場合、ログイン済みユーザーで既存予約がある場合は、時間枠が選択されていなくても許可（既存予約の削除のみ）
+        if not self.instance:
+            has_existing_reservations = False
+            if self.user and self.user.is_authenticated and location and reservation_date:
+                existing_reservations = Reservation.objects.filter(
+                    location=location,
+                    date=reservation_date,
+                    created_by=self.user,
+                    status__in=['confirmed', 'pending']
+                )
+                has_existing_reservations = existing_reservations.exists()
+
+            if not time_slots:
+                if not has_existing_reservations:
+                    raise ValidationError('時間枠を選択してください。')
+                # 既存予約がある場合は、時間枠が選択されていなくても許可（既存予約の削除のみ）
+                return cleaned_data
+
+        # 時間枠が選択されている場合の処理
+        if location and time_slots and reservation_date:
+            # 各時間枠について重複チェック（自分の既存予約は除外）
+            for time_slot in time_slots:
+                existing_reservation = Reservation.objects.filter(
+                    location=location,
+                    time_slot=time_slot,
+                    date=reservation_date,
+                    status__in=['confirmed', 'pending']
+                ).exclude(pk=self.instance.pk if self.instance else None)
+                
+                # ログイン済みユーザーの場合、自分の既存予約は除外
+                if self.user and self.user.is_authenticated:
+                    existing_reservation = existing_reservation.exclude(created_by=self.user)
+
+                if existing_reservation.exists():
+                    raise ValidationError(f'この場所と時間枠（{time_slot}）は既に予約されています。')
+
+            # 過去の日付は予約できない
+            if reservation_date < date.today():
+                raise ValidationError('過去の日付は予約できません。')
 
         return cleaned_data
 
@@ -106,6 +174,31 @@ class TimeSlotForm(forms.ModelForm):
             if existing_slot.exists():
                 raise forms.ValidationError('同じ時間枠が既に存在します。')
 
+        return cleaned_data
+
+class PlanForm(forms.ModelForm):
+    """プランフォーム"""
+    class Meta:
+        model = Plan
+        fields = ['name', 'description', 'price', 'is_default', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'プラン名を入力してください'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'プランの説明を入力してください'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 1, 'placeholder': '価格を入力してください'}),
+            'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        is_default = cleaned_data.get('is_default')
+        
+        # デフォルトプランが複数存在しないようにする
+        if is_default:
+            existing_default = Plan.objects.filter(is_default=True).exclude(pk=self.instance.pk if self.instance else None)
+            if existing_default.exists():
+                raise forms.ValidationError('デフォルトプランは1つだけ設定できます。既存のデフォルトプランを解除してから設定してください。')
+        
         return cleaned_data
 
 class ReservationSearchForm(forms.Form):

@@ -1,0 +1,177 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}予約確認 - 予約システム{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-check-circle text-dark"></i> 予約確認
+                </h2>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            <i class="fas fa-info-circle"></i> {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 以下の内容で予約を確定します。内容をご確認ください。
+                </div>
+
+                <div class="mb-4">
+                    <h5 class="border-bottom pb-2 mb-3">
+                        <i class="fas fa-calendar-alt"></i> 予約情報
+                    </h5>
+                    <table class="table table-bordered">
+                        <tr>
+                            <th class="bg-light" style="width: 30%;">場所</th>
+                            <td>{{ location.name }}</td>
+                        </tr>
+                        {% if is_multi_date %}
+                        <!-- 複数日の予約表示 -->
+                        <tr>
+                            <th class="bg-light">予約日・時間枠</th>
+                            <td>
+                                {% if multi_date_details %}
+                                <div class="mb-3">
+                                    {% for date_detail in multi_date_details %}
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-warning text-dark">
+                                            <strong>{{ date_detail.date|date:"Y年m月d日 (D)" }}</strong>
+                                        </div>
+                                        <div class="card-body">
+                                            <table class="table table-sm table-bordered mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>時間</th>
+                                                        <th>時間数</th>
+                                                        <th class="text-end">金額</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for detail in date_detail.time_slot_details %}
+                                                    <tr>
+                                                        <td>{{ detail.time_slot.start_time }} - {{ detail.time_slot.end_time }}</td>
+                                                        <td>{{ detail.duration_minutes }}分（{{ detail.units_30min }}×30分）</td>
+                                                        <td class="text-end">{{ detail.amount|floatformat:0 }}円</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr class="table-warning">
+                                                        <th colspan="2" class="text-end">日計</th>
+                                                        <th class="text-end">{{ date_detail.date_total|floatformat:0 }}円</th>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    <div class="alert alert-warning mb-0">
+                                        <strong>合計金額: {{ total_amount|floatformat:0 }}円</strong>
+                                    </div>
+                                    {% if price_per_30min > 0 %}
+                                    <small class="text-muted">※ 30分あたり {{ price_per_30min|floatformat:0 }}円で計算</small>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <p class="text-muted mb-0">時間枠が選択されていません</p>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <!-- 単一日の予約表示（既存の処理） -->
+                        <tr>
+                            <th class="bg-light">予約日</th>
+                            <td>{{ date|date:"Y年m月d日" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">時間枠</th>
+                            <td>
+                                {% if time_slot_details %}
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>時間</th>
+                                            <th>時間数</th>
+                                            <th class="text-end">金額</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for detail in time_slot_details %}
+                                        <tr>
+                                            <td>{{ detail.time_slot.start_time }} - {{ detail.time_slot.end_time }}</td>
+                                            <td>{{ detail.duration_minutes }}分（{{ detail.units_30min }}×30分）</td>
+                                            <td class="text-end">{{ detail.amount|floatformat:0 }}円</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-warning">
+                                            <th colspan="2" class="text-end">合計金額</th>
+                                            <th class="text-end">{{ total_amount|floatformat:0 }}円</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                                {% if price_per_30min > 0 %}
+                                <small class="text-muted">※ 30分あたり {{ price_per_30min|floatformat:0 }}円で計算</small>
+                                {% endif %}
+                                {% else %}
+                                <p class="text-muted mb-0">時間枠が選択されていません（既存予約の削除のみ）</p>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <h5 class="border-bottom pb-2 mb-3">
+                        <i class="fas fa-user"></i> お客様情報
+                    </h5>
+                    <table class="table table-bordered">
+                        <tr>
+                            <th class="bg-light" style="width: 30%;">お客様名</th>
+                            <td>{{ customer_name }}</td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">メールアドレス</th>
+                            <td>{{ customer_email }}</td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">電話番号</th>
+                            <td>{{ customer_phone }}</td>
+                        </tr>
+                        {% if notes %}
+                        <tr>
+                            <th class="bg-light">備考</th>
+                            <td>{{ notes }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+
+                <form method="post" action="{% url 'reservations:reservation_confirm_submit' %}">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left"></i> 戻る
+                        </a>
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            <i class="fas fa-check"></i> 予約を確定
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

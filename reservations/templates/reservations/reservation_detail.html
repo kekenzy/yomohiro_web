@@ -7,21 +7,9 @@
     <div class="col-md-8">
         <div class="card border-warning">
             <div class="card-header bg-warning text-dark">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h2 class="card-title mb-0">
-                        <i class="fas fa-calendar-check text-dark"></i> 予約詳細
-                    </h2>
-                    <div>
-                        {% if user.is_authenticated %}
-                            <a href="{% url 'reservations:reservation_edit' reservation.pk %}" class="btn btn-warning btn-sm">
-                                <i class="fas fa-edit"></i> 編集
-                            </a>
-                            <a href="{% url 'reservations:reservation_delete' reservation.pk %}" class="btn btn-danger btn-sm">
-                                <i class="fas fa-trash"></i> 削除
-                            </a>
-                        {% endif %}
-                    </div>
-                </div>
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-calendar-check text-dark"></i> 予約詳細
+                </h2>
             </div>
             <div class="card-body">
                 <div class="row">
@@ -40,8 +28,58 @@
                             </tr>
                             <tr>
                                 <th>時間:</th>
-                                <td>{{ reservation.time_slot.start_time }} - {{ reservation.time_slot.end_time }}</td>
+                                <td>
+                                    {% if is_grouped %}
+                                        {{ start_time }} - {{ end_time }}
+                                        <br><small class="text-muted">({{ consecutive_reservations|length }}枠)</small>
+                                    {% else %}
+                                        {{ reservation.time_slot.start_time }} - {{ reservation.time_slot.end_time }}
+                                    {% endif %}
+                                </td>
                             </tr>
+                            {% if is_grouped %}
+                            <tr>
+                                <th>時間枠詳細:</th>
+                                <td>
+                                    <ul class="mb-0">
+                                        {% for res in consecutive_reservations %}
+                                            <li>{{ res.time_slot.start_time }} - {{ res.time_slot.end_time }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if time_slot_details %}
+                            <tr>
+                                <th>料金詳細:</th>
+                                <td>
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>時間</th>
+                                                <th>時間数</th>
+                                                <th class="text-end">金額</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for detail in time_slot_details %}
+                                            <tr>
+                                                <td>{{ detail.time_slot.start_time|time:"H:i" }} - {{ detail.time_slot.end_time|time:"H:i" }}</td>
+                                                <td>{{ detail.duration_minutes }}分（{{ detail.units_30min }}×30分）</td>
+                                                <td class="text-end">{{ detail.amount|floatformat:0 }}円</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if total_amount > 0 %}
+                            <tr>
+                                <th>合計金額:</th>
+                                <td class="text-end fs-5 fw-bold">{{ total_amount|floatformat:0 }}円</td>
+                            </tr>
+                            {% endif %}
                             <tr>
                                 <th>ステータス:</th>
                                 <td>
@@ -120,12 +158,77 @@
                     <a href="{% url 'reservations:reservation_list' %}" class="btn btn-secondary me-md-2">
                         <i class="fas fa-list"></i> 予約一覧
                     </a>
-                    <a href="{% url 'reservations:reservation_create' %}" class="btn btn-warning">
-                        <i class="fas fa-plus"></i> 新規予約
-                    </a>
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'reservations:reservation_edit' reservation.pk %}" class="btn btn-warning me-md-2">
+                            <i class="fas fa-edit"></i> 予約編集
+                        </a>
+                        {% if is_grouped %}
+                            <button type="button" class="btn btn-danger" onclick="deleteGroupedReservations()">
+                                <i class="fas fa-trash"></i> 予約削除
+                            </button>
+                        {% else %}
+                            <a href="{% url 'reservations:reservation_delete' reservation.pk %}" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> 予約削除
+                            </a>
+                        {% endif %}
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if user.is_authenticated and is_grouped %}
+<script>
+function deleteGroupedReservations() {
+    if (confirm('連続予約（{{ consecutive_reservations|length }}枠）をすべて削除しますか？')) {
+        // 連続予約のIDリストを取得
+        const reservationIds = [{% for res in consecutive_reservations %}{{ res.id }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+        
+        // 各予約を削除
+        let deletedCount = 0;
+        const totalCount = reservationIds.length;
+        
+        reservationIds.forEach(id => {
+            fetch(`/reservations/${id}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `csrfmiddlewaretoken=${getCookie('csrftoken')}`
+            })
+            .then(response => {
+                if (response.ok || response.redirected) {
+                    deletedCount++;
+                    if (deletedCount === totalCount) {
+                        window.location.href = '{% url "reservations:reservation_list" %}';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    }
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endif %}
 {% endblock %}

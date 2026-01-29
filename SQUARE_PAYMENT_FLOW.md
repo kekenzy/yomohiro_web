@@ -332,3 +332,10 @@ WebhookはHTTPS必須のため、SSL証明書を設定してください。
 - [Square Python SDK](https://github.com/square/square-python-sdk)
 - [Square Checkout API](https://developer.squareup.com/docs/checkout-api/overview)
 
+
+
+
+
+
+
+

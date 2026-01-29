@@ -8,6 +8,7 @@ class Location(models.Model):
     name = models.CharField(max_length=100, verbose_name='場所名')
     description = models.TextField(blank=True, verbose_name='説明')
     capacity = models.PositiveIntegerField(verbose_name='定員')
+    price_per_30min = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name='30分あたりの金額（円）')
     is_active = models.BooleanField(default=True, verbose_name='有効')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

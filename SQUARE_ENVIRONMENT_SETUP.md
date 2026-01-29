@@ -203,3 +203,10 @@ SQUARE_WEBHOOK_SECRET=your-production-webhook-secret  # 必須
 - [Square Webhook Signature Verification](https://developer.squareup.com/docs/webhooks/step4validate)
 - [Square Developer Portal](https://developer.squareup.com/)
 
+
+
+
+
+
+
+

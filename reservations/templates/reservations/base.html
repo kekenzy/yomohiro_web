@@ -22,17 +22,43 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link text-dark" href="{% url 'reservations:index' %}">ホーム</a>
+                        <a class="nav-link text-dark" href="{% url 'reservations:index' %}">
+                            <i class="fas fa-home"></i> ホーム
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-dark" href="{% url 'reservations:location_list' %}">場所一覧</a>
+                        <a class="nav-link text-dark" href="{% url 'reservations:location_list' %}">
+                            <i class="fas fa-list"></i> 場所一覧
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-dark" href="{% url 'reservations:reservation_create' %}">予約</a>
+                        <a class="nav-link text-dark" href="{% url 'reservations:reservation_create' %}">
+                            <i class="fas fa-calendar-plus"></i> 予約
+                        </a>
                     </li>
                     {% if user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link text-dark" href="{% url 'reservations:reservation_list' %}">予約管理</a>
+                            <a class="nav-link text-dark" href="{% url 'reservations:my_reservations' %}">
+                                <i class="fas fa-calendar-check"></i> 予約確認
+                            </a>
+                        </li>
+                        <!-- レスポンシブ時に表示（モバイル） -->
+                        <li class="nav-item d-lg-none">
+                            <a class="nav-link text-dark" href="{% url 'reservations:user_profile' %}">
+                                <i class="fas fa-user-circle"></i> ユーザー情報
+                            </a>
+                        </li>
+                        <li class="nav-item d-lg-none">
+                            <a class="nav-link text-dark" href="{% url 'reservations:logout' %}">
+                                <i class="fas fa-sign-out-alt"></i> ログアウト
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if user.is_authenticated and user.is_superuser %}
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" href="{% url 'reservations:reservation_list' %}">
+                                <i class="fas fa-calendar-alt"></i> 予約管理
+                            </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-dark" href="{% url 'reservations:location_management' %}">
@@ -44,11 +70,18 @@
                                 <i class="fas fa-clock"></i> 時間管理
                             </a>
                         </li>
+                        <!-- レスポンシブ時に表示（モバイル） -->
+                        <li class="nav-item d-lg-none">
+                            <a class="nav-link text-dark" href="{% url 'reservations:admin_dashboard' %}">
+                                <i class="fas fa-user-cog"></i> 管理画面
+                            </a>
+                        </li>
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
-                        <li class="nav-item dropdown">
+                        <!-- デスクトップ時に表示（lg以上） -->
+                        <li class="nav-item dropdown d-none d-lg-block">
                             <a class="nav-link text-dark dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-user"></i> {{ user.username }}
                             </a>
@@ -56,7 +89,7 @@
                                 <li><a class="dropdown-item" href="{% url 'reservations:user_profile' %}">
                                     <i class="fas fa-user-circle"></i> ユーザー情報
                                 </a></li>
-                                {% if user.is_staff %}
+                                {% if user.is_superuser %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{% url 'reservations:admin_dashboard' %}">
                                     <i class="fas fa-user-cog"></i> 管理画面

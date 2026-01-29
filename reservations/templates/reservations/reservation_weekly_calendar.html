@@ -1,0 +1,331 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}週間カレンダー - 予約システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .calendar-table {
+        font-size: 0.85rem;
+        table-layout: fixed;
+    }
+    .calendar-table th,
+    .calendar-table td {
+        padding: 0.3rem;
+        text-align: center;
+        vertical-align: middle;
+    }
+    .calendar-table th {
+        background-color: #ffc107;
+        color: #000;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .time-cell {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        width: 80px;
+    }
+    .date-header {
+        background-color: #ffc107;
+        color: #000;
+    }
+    .slot-available {
+        color: #dc3545;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .slot-available:hover {
+        background-color: #fff3cd;
+        transform: scale(1.2);
+    }
+    .slot-unavailable {
+        color: #dc3545;
+        font-size: 1.2rem;
+        font-weight: bold;
+        cursor: not-allowed !important;
+        background-color: #f8f9fa;
+        opacity: 0.6;
+        pointer-events: none !important;
+    }
+    .slot-unavailable:hover {
+        background-color: #e9ecef;
+        transform: none;
+        cursor: not-allowed !important;
+    }
+    .slot-not-applicable {
+        color: #6c757d;
+        cursor: default;
+    }
+    .slot-selected {
+        background-color: #ffc107;
+        color: #000;
+        font-weight: bold;
+    }
+    .section-header {
+        background-color: #fff3cd;
+        font-weight: bold;
+        text-align: left;
+        padding-left: 0.5rem !important;
+    }
+    .week-navigation {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .selected-slots-info {
+        background-color: #fff3cd;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h2 class="card-title mb-0">
+                        <i class="fas fa-calendar-week text-dark"></i> 週間カレンダー - {{ location.name }}
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <!-- 週のナビゲーション -->
+                    <div class="week-navigation">
+                        <a href="?location={{ location.id }}&week_start={{ prev_week|date:'Y-m-d' }}" class="btn btn-outline-warning">
+                            <i class="fas fa-chevron-left"></i> 前の週
+                        </a>
+                        <h5 class="mb-0">
+                            {{ week_start|date:"Y年m月d日" }} ～ {{ week_dates|last|date:"m月d日" }}
+                        </h5>
+                        <a href="?location={{ location.id }}&week_start={{ next_week|date:'Y-m-d' }}" class="btn btn-outline-warning">
+                            次の週 <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </div>
+
+                    <!-- 選択された時間枠の情報 -->
+                    <div id="selected-slots-info" class="selected-slots-info" style="display: none;">
+                        <h6><i class="fas fa-check-circle"></i> 選択された時間枠</h6>
+                        <div id="selected-slots-list"></div>
+                        <button id="proceed-to-form-btn" class="btn btn-warning mt-2" style="display: none;">
+                            <i class="fas fa-arrow-right"></i> 予約フォームへ進む
+                        </button>
+                    </div>
+
+                    <!-- 週間カレンダーテーブル -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm calendar-table">
+                            <thead>
+                                <tr>
+                                    <th class="time-cell">日時</th>
+                                    {% for d in week_dates %}
+                                        <th class="date-header">
+                                            {{ d|date:"d" }}<br>
+                                            <small>({{ d|date:"D" }})</small>
+                                        </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for slot_data in availability_data %}
+                                    {% with slot=slot_data.slot %}
+                                        {% if slot.start_time.hour >= 12 and slot.start_time.hour < 18 %}
+                                            {% if forloop.first or slot.start_time.hour == 12 %}
+                                                <tr>
+                                                    <td colspan="{{ week_dates|length|add:1 }}" class="section-header">
+                                                        ▼午後(12:00-18:00)
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                        {% elif slot.start_time.hour >= 18 %}
+                                            {% if forloop.first or slot.start_time.hour == 18 %}
+                                                <tr>
+                                                    <td colspan="{{ week_dates|length|add:1 }}" class="section-header">
+                                                        ▼夜(18:00-)
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                        {% endif %}
+                                        <tr>
+                                            <td class="time-cell">{{ slot.start_time|time:"H:i" }}</td>
+                                            {% for date_info in slot_data.dates %}
+                                                {% with d=date_info.date availability=date_info %}
+                                                    <td class="slot-cell {% if availability.is_available %}slot-available{% elif availability.is_booked_by_others %}slot-unavailable{% else %}slot-not-applicable{% endif %}"
+                                                        data-date="{{ d|date:'Y-m-d' }}"
+                                                        data-slot-id="{{ slot.id }}"
+                                                        data-slot-time="{{ slot.start_time|time:'H:i' }}-{{ slot.end_time|time:'H:i' }}"
+                                                        {% if availability.is_available %}
+                                                            onclick="toggleSlot(this)"
+                                                        {% else %}
+                                                            style="pointer-events: none; cursor: not-allowed;"
+                                                        {% endif %}>
+                                                        {% if availability.is_available %}
+                                                            ◎
+                                                        {% elif availability.is_booked_by_others %}
+                                                            <strong style="color: #dc3545; font-size: 1.2rem;">✕</strong>
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </td>
+                                                {% endwith %}
+                                            {% endfor %}
+                                        </tr>
+                                    {% endwith %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 凡例 -->
+                    <div class="mt-3">
+                        <small>
+                            <strong>凡例:</strong>
+                            <span class="slot-available">◎</span> 利用可能 / 
+                            <span class="slot-unavailable"><strong>✕</strong></span> 予約済み（利用不可） / 
+                            <span class="slot-not-applicable">-</span> 該当なし
+                        </small>
+                    </div>
+
+                    <!-- アクションボタン -->
+                    <div class="mt-3 d-flex justify-content-between">
+                        <a href="{% url 'reservations:reservation_create' %}?location={{ location.id }}&use_weekly=false" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> 戻る
+                        </a>
+                        <a href="{% url 'reservations:reservation_create' %}?use_weekly=false" class="btn btn-outline-warning">
+                            <i class="fas fa-calendar"></i> 通常の予約フォームへ
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 選択された時間枠を管理
+let selectedSlots = new Map(); // key: "date-slotId", value: {date, slotId, slotTime}
+
+// テンプレートフィルタの代替（DjangoテンプレートフィルタをJavaScriptで処理）
+function toggleSlot(cell) {
+    // 予約済みのセルはクリックできないようにする
+    if (cell.classList.contains('slot-unavailable') || cell.style.pointerEvents === 'none') {
+        return;
+    }
+    
+    const date = cell.dataset.date;
+    const slotId = cell.dataset.slotId;
+    const slotTime = cell.dataset.slotTime;
+    const key = `${date}-${slotId}`;
+    
+    if (selectedSlots.has(key)) {
+        // 選択解除
+        selectedSlots.delete(key);
+        cell.classList.remove('slot-selected');
+    } else {
+        // 選択
+        selectedSlots.set(key, {
+            date: date,
+            slotId: slotId,
+            slotTime: slotTime
+        });
+        cell.classList.add('slot-selected');
+    }
+    
+    updateSelectedSlotsInfo();
+}
+
+function updateSelectedSlotsInfo() {
+    const infoDiv = document.getElementById('selected-slots-info');
+    const listDiv = document.getElementById('selected-slots-list');
+    const proceedBtn = document.getElementById('proceed-to-form-btn');
+    
+    if (selectedSlots.size === 0) {
+        infoDiv.style.display = 'none';
+        return;
+    }
+    
+    infoDiv.style.display = 'block';
+    
+    // 日付ごとにグループ化
+    const groupedByDate = {};
+    selectedSlots.forEach((slot, key) => {
+        if (!groupedByDate[slot.date]) {
+            groupedByDate[slot.date] = [];
+        }
+        groupedByDate[slot.date].push(slot);
+    });
+    
+    // 表示用のHTMLを生成
+    let html = '<ul class="mb-0">';
+    Object.keys(groupedByDate).sort().forEach(date => {
+        const slots = groupedByDate[date];
+        const dateObj = new Date(date);
+        const dateStr = dateObj.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+        html += `<li><strong>${dateStr}:</strong> `;
+        html += slots.map(s => s.slotTime).join(', ');
+        html += '</li>';
+    });
+    html += '</ul>';
+    
+    listDiv.innerHTML = html;
+    proceedBtn.style.display = 'block';
+}
+
+// 予約フォームへ進む
+document.getElementById('proceed-to-form-btn').addEventListener('click', function() {
+    if (selectedSlots.size === 0) {
+        alert('時間枠を選択してください。');
+        return;
+    }
+    
+    // 日付ごとにグループ化
+    const groupedByDate = {};
+    selectedSlots.forEach((slot, key) => {
+        if (!groupedByDate[slot.date]) {
+            groupedByDate[slot.date] = [];
+        }
+        // 時間枠IDを整数として保存
+        groupedByDate[slot.date].push(parseInt(slot.slotId));
+    });
+    
+    // 複数日の予約データをJSON形式でエンコード
+    const multiDateData = JSON.stringify(groupedByDate);
+    console.log('Multi-date data:', multiDateData); // デバッグ用
+    
+    // 予約フォームにリダイレクト（複数日の予約データをパラメータとして渡す）
+    // use_weekly=falseを追加して、再度週間カレンダーに自動遷移しないようにする
+    const url = new URL('{% url "reservations:reservation_create" %}', window.location.origin);
+    url.searchParams.set('location', '{{ location.id }}');
+    url.searchParams.set('multi_date_slots', encodeURIComponent(multiDateData));
+    url.searchParams.set('use_weekly', 'false');
+    
+    window.location.href = url.toString();
+});
+
+// ページ読み込み時に選択された時間枠があれば表示
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const preSelectedSlots = urlParams.get('time_slots');
+    const preSelectedDate = urlParams.get('date');
+    
+    if (preSelectedSlots && preSelectedDate) {
+        const slotIds = preSelectedSlots.split(',');
+        slotIds.forEach(slotId => {
+            const cell = document.querySelector(`[data-date="${preSelectedDate}"][data-slot-id="${slotId}"]`);
+            if (cell && cell.classList.contains('slot-available')) {
+                toggleSlot(cell);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+

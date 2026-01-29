@@ -1,4 +1,4 @@
-.PHONY: help up down build log logs restart shell migrate createsuperuser test clean
+.PHONY: help up down build log logs restart shell migrate createsuperuser test clean deploy
 
 # デフォルトターゲット
 help:
@@ -16,6 +16,7 @@ help:
 	@echo "  make test        - テスト実行"
 	@echo "  make clean       - 停止中のコンテナと未使用イメージを削除"
 	@echo "  make adminer     - Adminer（DB管理ツール）を起動"
+	@echo "  make deploy      - Lightsailにデプロイ（yomohiro）"
 
 # Dockerコンテナを起動（バックグラウンド）
 up:
@@ -105,4 +106,9 @@ adminer:
 	@echo "  データベース: reservation_db"
 	@echo ""
 	@echo "コンテナを起動するには: make up"
+
+# Lightsailにデプロイ
+deploy:
+	@echo "🚀 Lightsailにデプロイします..."
+	@./deploy.sh
 

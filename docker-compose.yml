@@ -24,6 +24,10 @@ services:
     environment:
       - DATABASE_URL=postgresql://reservation_user:reservation_password@db:5432/reservation_db
       - DEBUG=1
+      - SQUARE_APPLICATION_ID=sandbox-sq0idb-Klqy4yYEmO_5_1Ea9msc3w
+      - SQUARE_ACCESS_TOKEN=EAAAl5UHQGekKNOWGRkLWMJ7NTohmkFaFRZXL2wioazmvTMi-PcFmU9SHpwwdSSe
+      - SQUARE_ENVIRONMENT=sandbox
+      - SQUARE_LOCATION_ID=LHQHHBA22J5E1
 
   adminer:
     image: adminer:latest

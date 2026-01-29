@@ -1,0 +1,68 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}プラン削除確認 - U-街プラザ 東西南北館{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-trash text-danger"></i> プラン削除確認
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> 削除確認
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">以下のプランを削除してもよろしいですか？</p>
+                
+                <div class="alert alert-warning">
+                    <h5><i class="fas fa-tags"></i> {{ plan.name }}</h5>
+                    <p class="mb-0">
+                        <strong>価格:</strong> ¥{{ plan.price|floatformat:0 }}<br>
+                        {% if plan.description %}
+                            <strong>説明:</strong> {{ plan.description|truncatewords:20 }}<br>
+                        {% endif %}
+                        <strong>ステータス:</strong> 
+                        {% if plan.is_active %}
+                            <span class="badge bg-success">有効</span>
+                        {% else %}
+                            <span class="badge bg-danger">無効</span>
+                        {% endif %}
+                        {% if plan.is_default %}
+                            <span class="badge bg-warning text-dark">デフォルト</span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                {% if existing_profiles.exists %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>警告:</strong> このプランを使用している会員が {{ existing_profiles.count }} 名います。
+                        削除する前に、これらの会員のプランを変更してください。
+                    </div>
+                {% endif %}
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'reservations:plan_management' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> キャンセル
+                        </a>
+                        <button type="submit" class="btn btn-danger" {% if existing_profiles.exists %}disabled{% endif %}>
+                            <i class="fas fa-trash"></i> 削除
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

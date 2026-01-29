@@ -1,0 +1,116 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}予約確認 - U-街プラザ 東西南北館{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-calendar-check text-warning"></i> 予約確認
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list text-dark"></i> マイ予約一覧
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if page_obj %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>日付</th>
+                                    <th>場所</th>
+                                    <th>時間</th>
+                                    <th>ステータス</th>
+                                    <th>作成日</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for group in page_obj %}
+                                    {% with first_reservation=group.reservations|first %}
+                                    <tr>
+                                        <td>{{ group.date|date:"Y年m月d日" }}</td>
+                                        <td>{{ group.location.name }}</td>
+                                        <td>
+                                            {{ group.start_time|time:"H:i" }} - {{ group.end_time|time:"H:i" }}
+                                            {% if group.reservations|length > 1 %}
+                                                <br><small class="text-muted">({{ group.reservations|length }}枠)</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if group.status == 'confirmed' %}
+                                                <span class="badge bg-success">確認済み</span>
+                                            {% elif group.status == 'pending' %}
+                                                <span class="badge bg-warning text-dark">保留中</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">キャンセル</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ first_reservation.created_at|date:"Y年m月d日 H:i" }}</td>
+                                        <td>
+                                            <a href="{% url 'reservations:reservation_detail' first_reservation.id %}" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-eye"></i> 詳細
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endwith %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- ページネーション -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="ページネーション">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1">&laquo; 最初</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">前へ</a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">次へ</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">最後 &raquo;</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle"></i> 予約がありません
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+
+
+
