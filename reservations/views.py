@@ -1939,10 +1939,21 @@ def plan_delete(request, pk):
 def user_management(request):
     """ユーザー管理（管理者のみ）"""
     try:
-        # すべてのユーザーを取得（MemberProfileがあるユーザーを優先）
+        # すべてのユーザーを取得
         users = User.objects.all().order_by('-date_joined')
+        # 各ユーザーのMemberProfileを取得
+        users_with_profiles = []
+        for user in users:
+            try:
+                profile = MemberProfile.objects.get(user=user)
+            except MemberProfile.DoesNotExist:
+                profile = None
+            users_with_profiles.append({
+                'user': user,
+                'profile': profile
+            })
         return render(request, 'reservations/user_management.html', {
-            'users': users
+            'users_with_profiles': users_with_profiles
         })
     except Exception as e:
         print(f"Debug: Error in user_management - {str(e)}")
