@@ -135,21 +135,29 @@
                             <tbody>
                                 {% for slot_data in availability_data %}
                                     {% with slot=slot_data.slot %}
-                                        {% if slot.start_time.hour >= 12 and slot.start_time.hour < 18 %}
-                                            {% if forloop.first or slot.start_time.hour == 12 %}
-                                                <tr>
-                                                    <td colspan="{{ week_dates|length|add:1 }}" class="section-header">
-                                                        ▼午後(12:00-18:00)
-                                                    </td>
-                                                </tr>
+                                        {% if slot.start_time.hour == 12 and slot.start_time.minute == 0 %}
+                                            {% if not forloop.first %}
+                                                {% with prev_slot=availability_data|slice:forloop.counter0|last %}
+                                                    {% if prev_slot.slot.start_time.hour < 12 %}
+                                                        <tr>
+                                                            <td colspan="{{ week_dates|length|add:1 }}" class="section-header">
+                                                                ▼午後(12:00-18:00)
+                                                            </td>
+                                                        </tr>
+                                                    {% endif %}
+                                                {% endwith %}
                                             {% endif %}
-                                        {% elif slot.start_time.hour >= 18 %}
-                                            {% if forloop.first or slot.start_time.hour == 18 %}
-                                                <tr>
-                                                    <td colspan="{{ week_dates|length|add:1 }}" class="section-header">
-                                                        ▼夜(18:00-)
-                                                    </td>
-                                                </tr>
+                                        {% elif slot.start_time.hour == 18 and slot.start_time.minute == 0 %}
+                                            {% if not forloop.first %}
+                                                {% with prev_slot=availability_data|slice:forloop.counter0|last %}
+                                                    {% if prev_slot.slot.start_time.hour < 18 %}
+                                                        <tr>
+                                                            <td colspan="{{ week_dates|length|add:1 }}" class="section-header">
+                                                                ▼夜(18:00-)
+                                                            </td>
+                                                        </tr>
+                                                    {% endif %}
+                                                {% endwith %}
                                             {% endif %}
                                         {% endif %}
                                         <tr>
