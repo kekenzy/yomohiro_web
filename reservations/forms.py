@@ -242,14 +242,6 @@ class MemberRegistrationStep1Form(forms.Form):
         required=True,
         widget=forms.Select(attrs={'class': 'form-select'})
     )
-    birth_date = forms.DateField(
-        label='生年月日',
-        required=True,
-        widget=forms.DateInput(attrs={
-            'type': 'date',
-            'class': 'form-control'
-        })
-    )
     email = forms.EmailField(
         label='メールアドレス',
         required=True,

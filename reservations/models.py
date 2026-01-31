@@ -122,7 +122,6 @@ class MemberProfile(models.Model):
     # 基本情報
     full_name = models.CharField(max_length=100, verbose_name='氏名')
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, verbose_name='性別')
-    birth_date = models.DateField(verbose_name='生年月日')
     phone = models.CharField(
         max_length=15,
         verbose_name='電話番号',

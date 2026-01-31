@@ -1912,18 +1912,14 @@ def member_registration(request):
         if request.method == 'POST':
             form = MemberRegistrationStep1Form(request.POST)
             if form.is_valid():
-                # セッションに保存（dateオブジェクトを文字列に変換）
+                # セッションに保存
                 cleaned_data = form.cleaned_data.copy()
-                if 'birth_date' in cleaned_data and cleaned_data['birth_date']:
-                    cleaned_data['birth_date'] = cleaned_data['birth_date'].isoformat()
                 registration_data['step1'] = cleaned_data
                 request.session[session_key] = registration_data
                 return redirect(f"{reverse('reservations:member_registration')}?step=2")
         else:
-            # セッションからデータを復元（文字列をdateオブジェクトに変換）
+            # セッションからデータを復元
             initial_data = registration_data.get('step1', {}).copy()
-            if 'birth_date' in initial_data and isinstance(initial_data['birth_date'], str):
-                initial_data['birth_date'] = datetime.fromisoformat(initial_data['birth_date']).date()
             form = MemberRegistrationStep1Form(initial=initial_data)
         
         return render(request, 'reservations/member_registration_step1.html', {
@@ -2035,11 +2031,6 @@ def member_registration(request):
                         password=step1_data['password']
                     )
                     
-                    # プロフィール作成（birth_dateをdateオブジェクトに変換、plan_idからPlanオブジェクトを取得）
-                    birth_date = step1_data['birth_date']
-                    if isinstance(birth_date, str):
-                        birth_date = datetime.fromisoformat(birth_date).date()
-                    
                     # Planオブジェクトを取得
                     plan = None
                     if 'plan_id' in step2_data:
@@ -2051,7 +2042,6 @@ def member_registration(request):
                         user=user,
                         full_name=step1_data['full_name'],
                         gender=step1_data['gender'],
-                        birth_date=birth_date,
                         phone=step1_data['phone'],
                         postal_code=step1_data.get('postal_code', ''),
                         address=step1_data.get('address', ''),
