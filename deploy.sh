@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # ローカルからLightsailにデプロイするスクリプト
-# SSHエイリアス: yomohiro (18.183.91.131)
+# SSHエイリアス: yomohiro (18.183.107.163)
 
 set -e  # エラーが発生したら即座に終了
 
 echo "🚀 Lightsailへのデプロイを開始します..."
-echo "📍 ターゲット: yomohiro (18.183.91.131)"
+echo "📍 ターゲット: yomohiro (18.183.107.163)"
 
 # SSH接続テスト
 echo "🔌 SSH接続をテスト中..."
@@ -14,7 +14,7 @@ if ! ssh -o ConnectTimeout=10 yomohiro "echo 'SSH接続成功'" 2>/dev/null; the
     echo "❌ SSH接続に失敗しました。SSH設定を確認してください。"
     echo "   ~/.ssh/config に以下が設定されているか確認:"
     echo "   Host yomohiro"
-    echo "     HostName 18.183.91.131"
+    echo "     HostName 18.183.107.163"
     echo "     User ubuntu"
     exit 1
 fi
@@ -118,7 +118,7 @@ if [ ! -f ".env" ]; then
     cat > .env << EOF
 SECRET_KEY=$SECRET_KEY
 DEBUG=False
-ALLOWED_HOSTS=18.183.91.131,localhost,127.0.0.1
+ALLOWED_HOSTS=18.183.107.163,localhost,127.0.0.1
 SECURE_SSL_REDIRECT=False
 SESSION_COOKIE_SECURE=False
 CSRF_COOKIE_SECURE=False
@@ -181,5 +181,5 @@ ENDSSH
 
 echo ""
 echo "✅ デプロイが正常に完了しました！"
-echo "🌐 アプリケーション: http://18.183.91.131"
+echo "🌐 アプリケーション: http://18.183.107.163"
 

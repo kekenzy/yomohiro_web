@@ -59,7 +59,7 @@ echo "⚙️  .envファイルを更新中..."
 cd /home/ubuntu/yomohiro_web
 if [ -f .env ]; then
     # ALLOWED_HOSTSにドメインを追加
-    sed -i "s|ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$DOMAIN,$WWW_DOMAIN,18.183.91.131,localhost,127.0.0.1|" .env
+    sed -i "s|ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$DOMAIN,$WWW_DOMAIN,18.183.107.163,localhost,127.0.0.1|" .env
     
     # SSL設定を有効化
     sed -i 's/SECURE_SSL_REDIRECT=False/SECURE_SSL_REDIRECT=True/' .env
