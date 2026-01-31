@@ -2232,26 +2232,35 @@ def create_payment_link(request, amount, order_id=None, description=''):
             }
         )
         
-        # レスポンスのエラーチェック
-        if hasattr(result, 'errors') and result.errors:
-            errors = result.errors
+        # レスポンスのエラーチェック（Square SDK 39.1.0の形式）
+        if hasattr(result, 'is_success') and not result.is_success():
+            # エラーがある場合
+            errors = []
+            if hasattr(result, 'errors') and result.errors:
+                errors = [str(error) for error in result.errors]
+            elif hasattr(result, 'body') and hasattr(result.body, 'errors'):
+                errors = [str(error) for error in result.body.errors]
+            else:
+                errors = ['決済リンクの作成に失敗しました。']
             return {
                 'success': False,
-                'errors': [str(error) for error in errors]
+                'errors': errors
             }
         
         # レスポンスボディから決済リンク情報を取得
         if hasattr(result, 'body') and result.body:
-            payment_link = result.body.payment_link if hasattr(result.body, 'payment_link') else result.body
-            return {
-                'success': True,
-                'payment_link_id': payment_link.id if hasattr(payment_link, 'id') else None,
-                'payment_link_url': payment_link.url if hasattr(payment_link, 'url') else None,
-                'order_id': payment_link.order_id if hasattr(payment_link, 'order_id') else None
-            }
-        elif hasattr(result, 'payment_link'):
-            # レスポンスが直接payment_linkを持っている場合
-            payment_link = result.payment_link
+            # result.body.payment_link または result.body から取得
+            payment_link = None
+            if hasattr(result.body, 'payment_link'):
+                payment_link = result.body.payment_link
+            elif hasattr(result.body, 'id'):  # result.body自体がpayment_linkの場合
+                payment_link = result.body
+            else:
+                return {
+                    'success': False,
+                    'errors': ['決済リンクの作成に失敗しました。レスポンス形式が不明です。']
+                }
+            
             return {
                 'success': True,
                 'payment_link_id': payment_link.id if hasattr(payment_link, 'id') else None,
