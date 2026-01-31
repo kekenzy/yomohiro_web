@@ -338,6 +338,21 @@ document.getElementById('proceed-to-form-btn').addEventListener('click', functio
     window.location.href = url.toString();
 });
 
+// 場所選択プルダウンの変更時に週間カレンダーを再読み込み
+document.getElementById('location-select').addEventListener('change', function() {
+    const locationId = this.value;
+    const urlParams = new URLSearchParams(window.location.search);
+    const weekStart = urlParams.get('week_start');
+    
+    // 新しいURLを構築
+    let newUrl = `{% url 'reservations:reservation_weekly_calendar' %}?location=${locationId}`;
+    if (weekStart) {
+        newUrl += `&week_start=${weekStart}`;
+    }
+    
+    window.location.href = newUrl;
+});
+
 // ページ読み込み時に選択された時間枠があれば表示
 document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
