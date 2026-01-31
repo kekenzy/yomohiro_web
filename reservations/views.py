@@ -2218,15 +2218,17 @@ def create_payment_link(request, amount, order_id=None, description=''):
             }
         
         # 決済リンクの作成
-        result = client.checkout.payment_links.create(
-            idempotency_key=f"{order_id}_{datetime.now().timestamp()}" if order_id else f"payment_{datetime.now().timestamp()}",
-            quick_pay={
-                'name': description or '決済',
-                'price_money': {
-                    'amount': int(amount),
-                    'currency': 'JPY'
-                },
-                'location_id': location_id
+        result = client.checkout.create_payment_link(
+            body={
+                'idempotency_key': f"{order_id}_{datetime.now().timestamp()}" if order_id else f"payment_{datetime.now().timestamp()}",
+                'quick_pay': {
+                    'name': description or '決済',
+                    'price_money': {
+                        'amount': int(amount),
+                        'currency': 'JPY'
+                    },
+                    'location_id': location_id
+                }
             }
         )
         
