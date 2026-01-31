@@ -1956,11 +1956,27 @@ def user_detail(request, pk):
     """ユーザー詳細（管理者のみ）"""
     user = get_object_or_404(User, pk=pk)
     
-    # MemberProfileを取得（存在しない場合はNone）
+    # MemberProfileを取得または作成
     try:
         profile = MemberProfile.objects.get(user=user)
     except MemberProfile.DoesNotExist:
-        profile = None
+        # MemberProfileが存在しない場合は作成
+        profile = MemberProfile.objects.create(
+            user=user,
+            full_name=user.get_full_name() or user.username,
+            gender='other',
+            phone='',
+        )
+    
+    # POSTリクエストの場合は編集処理
+    if request.method == 'POST':
+        form = UserEditForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'ユーザー情報が正常に更新されました。')
+            return redirect('reservations:user_detail', pk=user.pk)
+    else:
+        form = UserEditForm(instance=profile)
     
     # ユーザーの予約履歴
     reservations = Reservation.objects.filter(created_by=user).order_by('-date', '-time_slot__start_time')[:10]
@@ -1968,7 +1984,8 @@ def user_detail(request, pk):
     return render(request, 'reservations/user_detail.html', {
         'user': user,
         'profile': profile,
-        'reservations': reservations
+        'reservations': reservations,
+        'form': form
     })
 
 

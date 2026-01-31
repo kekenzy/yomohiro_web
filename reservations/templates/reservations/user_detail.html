@@ -56,16 +56,16 @@
                             <th>電話番号</th>
                             <td>{{ profile.phone }}</td>
                         </tr>
-                        <tr>
-                            <th>特別ユーザー</th>
-                            <td>
-                                {% if profile.is_special_user %}
-                                    <span class="badge bg-success">特別ユーザー（3ヶ月先まで予約可能）</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">一般ユーザー（1ヶ月先まで予約可能）</span>
-                                {% endif %}
-                            </td>
-                        </tr>
+                    <tr>
+                        <th>特別ユーザー</th>
+                        <td>
+                            {% if profile.is_special_user %}
+                                <span class="badge bg-success">特別ユーザー（3ヶ月先まで予約可能）</span>
+                            {% else %}
+                                <span class="badge bg-secondary">一般ユーザー（1ヶ月先まで予約可能）</span>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% else %}
                         <tr>
                             <th>会員情報</th>
@@ -87,12 +87,53 @@
                         </td>
                     </tr>
                 </table>
-                
-                <div class="mt-3">
-                    <a href="{% url 'reservations:user_edit' pk=user.pk %}" class="btn btn-warning">
-                        <i class="fas fa-edit"></i> 編集
-                    </a>
-                </div>
+            </div>
+        </div>
+        
+        <!-- 編集フォーム -->
+        <div class="card border-warning mt-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-edit text-dark"></i> 編集
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_special_user }}
+                            <label class="form-check-label" for="{{ form.is_special_user.id_for_label }}">
+                                <i class="fas fa-star"></i> {{ form.is_special_user.label }}
+                            </label>
+                        </div>
+                        {% if form.is_special_user.errors %}
+                            <div class="text-danger">
+                                {% for error in form.is_special_user.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            特別ユーザーに設定すると、3ヶ月先まで予約可能になります。一般ユーザーは1ヶ月先までです。
+                        </small>
+                    </div>
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save"></i> 保存
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
