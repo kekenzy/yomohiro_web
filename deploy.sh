@@ -57,10 +57,17 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "📦 ローカルの変更をstash中..."
     git stash
 fi
+# git pullの設定（rebaseを使用）
+git config pull.rebase false
 git pull origin main || {
     echo "⚠️  git pullに失敗しました。手動で確認してください。"
     exit 1
 }
+# stashした変更があれば復元
+if git stash list | grep -q "stash@{0}"; then
+    echo "📦 ローカルの変更を復元中..."
+    git stash pop || true
+fi
 
 # 仮想環境を作成またはアクティベート
 echo "📦 仮想環境を確認中..."
