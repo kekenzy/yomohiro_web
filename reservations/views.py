@@ -22,7 +22,7 @@ from .models import Location, TimeSlot, Reservation, Plan, MemberProfile
 from .forms import (
     ReservationForm, ReservationSearchForm, LocationForm, TimeSlotForm, PlanForm,
     MemberRegistrationStep1Form, MemberRegistrationStep2Form,
-    MemberRegistrationStep3Form, MemberRegistrationStep4Form
+    MemberRegistrationStep3Form, MemberRegistrationStep4Form, UserEditForm
 )
 from .decorators import superuser_required
 
@@ -1655,6 +1655,20 @@ def reservation_weekly_calendar(request):
             'slot': slot,
             'dates': []
         }
+        # 予約可能期間の計算（一般ユーザーは1ヶ月、特別ユーザーは3ヶ月）
+        today = date.today()
+        max_days = 30  # デフォルトは1ヶ月
+        
+        if request.user.is_authenticated:
+            try:
+                profile = MemberProfile.objects.get(user=request.user)
+                if profile.is_special_user:
+                    max_days = 90  # 特別ユーザーは3ヶ月
+            except MemberProfile.DoesNotExist:
+                pass
+        
+        max_date = today + timedelta(days=max_days)
+        
         for d in week_dates:
             # その日のその時間枠の予約を取得
             reservations = week_reservations.filter(date=d, time_slot=slot)
@@ -1663,16 +1677,34 @@ def reservation_weekly_calendar(request):
             # 予約があれば予約済み（利用不可）、なければ利用可能
             has_reservation = reservations.exists()
             
+            # 予約可能期間外かどうかをチェック
+            is_out_of_range = d < today or d > max_date
+            
             slot_data['dates'].append({
                 'date': d,
-                'is_available': not has_reservation,
+                'is_available': not has_reservation and not is_out_of_range,
                 'is_my_reservation': False,  # 週間カレンダーでは区別しない
-                'is_booked_by_others': has_reservation
+                'is_booked_by_others': has_reservation,
+                'is_out_of_range': is_out_of_range
             })
         availability_data.append(slot_data)
     
     # すべてのアクティブな場所を取得（プルダウン用）
     all_locations = Location.objects.filter(is_active=True).order_by('name')
+    
+    # 予約可能期間の計算（一般ユーザーは1ヶ月、特別ユーザーは3ヶ月）
+    today = date.today()
+    max_days = 30  # デフォルトは1ヶ月
+    
+    if request.user.is_authenticated:
+        try:
+            profile = MemberProfile.objects.get(user=request.user)
+            if profile.is_special_user:
+                max_days = 90  # 特別ユーザーは3ヶ月
+        except MemberProfile.DoesNotExist:
+            pass
+    
+    max_date = today + timedelta(days=max_days)
     
     context = {
         'location': location,
@@ -1683,6 +1715,8 @@ def reservation_weekly_calendar(request):
         'availability_data': availability_data,
         'prev_week': week_start - timedelta(days=7),
         'next_week': week_start + timedelta(days=7),
+        'max_date': max_date,
+        'today': today,
     }
     
     return render(request, 'reservations/reservation_weekly_calendar.html', context)
@@ -1897,6 +1931,78 @@ def plan_delete(request, pk):
     return render(request, 'reservations/plan_confirm_delete.html', {
         'plan': plan,
         'existing_profiles': existing_profiles
+    })
+
+
+@login_required
+@superuser_required
+def user_management(request):
+    """ユーザー管理（管理者のみ）"""
+    try:
+        # すべてのユーザーを取得（MemberProfileがあるユーザーを優先）
+        users = User.objects.all().order_by('-date_joined')
+        return render(request, 'reservations/user_management.html', {
+            'users': users
+        })
+    except Exception as e:
+        print(f"Debug: Error in user_management - {str(e)}")
+        messages.error(request, f'ユーザー管理画面の読み込み中にエラーが発生しました: {str(e)}')
+        return redirect('reservations:admin_dashboard')
+
+
+@login_required
+@superuser_required
+def user_detail(request, pk):
+    """ユーザー詳細（管理者のみ）"""
+    user = get_object_or_404(User, pk=pk)
+    
+    # MemberProfileを取得（存在しない場合はNone）
+    try:
+        profile = MemberProfile.objects.get(user=user)
+    except MemberProfile.DoesNotExist:
+        profile = None
+    
+    # ユーザーの予約履歴
+    reservations = Reservation.objects.filter(created_by=user).order_by('-date', '-time_slot__start_time')[:10]
+    
+    return render(request, 'reservations/user_detail.html', {
+        'user': user,
+        'profile': profile,
+        'reservations': reservations
+    })
+
+
+@login_required
+@superuser_required
+def user_edit(request, pk):
+    """ユーザー編集（管理者のみ）"""
+    user = get_object_or_404(User, pk=pk)
+    
+    # MemberProfileを取得または作成
+    try:
+        profile = MemberProfile.objects.get(user=user)
+    except MemberProfile.DoesNotExist:
+        # MemberProfileが存在しない場合は作成
+        profile = MemberProfile.objects.create(
+            user=user,
+            full_name=user.get_full_name() or user.username,
+            gender='other',
+            phone='',
+        )
+    
+    if request.method == 'POST':
+        form = UserEditForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'ユーザー情報が正常に更新されました。')
+            return redirect('reservations:user_detail', pk=user.pk)
+    else:
+        form = UserEditForm(instance=profile)
+    
+    return render(request, 'reservations/user_edit.html', {
+        'form': form,
+        'user': user,
+        'profile': profile
     })
 
 

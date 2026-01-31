@@ -1,0 +1,148 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}ユーザー詳細 - U-街プラザ 東西南北館{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-user text-warning"></i> ユーザー詳細
+        </h1>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-info-circle"></i> {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user text-dark"></i> 基本情報
+                </h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th style="width: 30%;">ユーザー名</th>
+                        <td>
+                            {{ user.username }}
+                            {% if user.is_superuser %}
+                                <span class="badge bg-danger">管理者</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>メールアドレス</th>
+                        <td>{{ user.email }}</td>
+                    </tr>
+                    {% if profile %}
+                        <tr>
+                            <th>氏名</th>
+                            <td>{{ profile.full_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>性別</th>
+                            <td>{{ profile.get_gender_display }}</td>
+                        </tr>
+                        <tr>
+                            <th>電話番号</th>
+                            <td>{{ profile.phone }}</td>
+                        </tr>
+                        <tr>
+                            <th>特別ユーザー</th>
+                            <td>
+                                {% if profile.is_special_user %}
+                                    <span class="badge bg-success">特別ユーザー（3ヶ月先まで予約可能）</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">一般ユーザー（1ヶ月先まで予約可能）</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <th>会員情報</th>
+                            <td><span class="text-muted">会員情報が登録されていません</span></td>
+                        </tr>
+                    {% endif %}
+                    <tr>
+                        <th>登録日</th>
+                        <td>{{ user.date_joined|date:"Y年m月d日 H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>最終ログイン</th>
+                        <td>
+                            {% if user.last_login %}
+                                {{ user.last_login|date:"Y年m月d日 H:i" }}
+                            {% else %}
+                                <span class="text-muted">未ログイン</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+                
+                <div class="mt-3">
+                    <a href="{% url 'reservations:user_edit' pk=user.pk %}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> 編集
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-calendar-alt text-dark"></i> 最近の予約
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if reservations %}
+                    <div class="list-group">
+                        {% for reservation in reservations %}
+                            <a href="{% url 'reservations:reservation_detail' reservation.pk %}" 
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ reservation.location.name }}</h6>
+                                    <small>{{ reservation.date|date:"m/d" }}</small>
+                                </div>
+                                <p class="mb-1">
+                                    <small>{{ reservation.time_slot.start_time|time:"H:i" }} - {{ reservation.time_slot.end_time|time:"H:i" }}</small>
+                                </p>
+                                <small>
+                                    {% if reservation.status == 'confirmed' %}
+                                        <span class="badge bg-success">確認済み</span>
+                                    {% elif reservation.status == 'pending' %}
+                                        <span class="badge bg-warning text-dark">保留中</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">キャンセル</span>
+                                    {% endif %}
+                                </small>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">予約履歴がありません。</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{% url 'reservations:user_management' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> ユーザー一覧に戻る
+        </a>
+    </div>
+</div>
+{% endblock %}
+

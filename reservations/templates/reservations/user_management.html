@@ -1,0 +1,104 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}ユーザー管理 - U-街プラザ 東西南北館{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-users text-warning"></i> ユーザー管理
+        </h1>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-info-circle"></i> {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list text-dark"></i> ユーザー一覧
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if users %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ユーザー名</th>
+                                    <th>メールアドレス</th>
+                                    <th>氏名</th>
+                                    <th>特別ユーザー</th>
+                                    <th>登録日</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in users_with_profiles %}
+                                    {% with user=item.user profile=item.profile %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ user.username }}</strong>
+                                                {% if user.is_superuser %}
+                                                    <span class="badge bg-danger">管理者</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ user.email }}</td>
+                                            <td>
+                                                {% if profile %}
+                                                    {{ profile.full_name }}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if profile and profile.is_special_user %}
+                                                    <span class="badge bg-success">特別ユーザー</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">一般ユーザー</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ user.date_joined|date:"Y/m/d" }}</small>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'reservations:user_detail' pk=user.pk %}" 
+                                                   class="btn btn-sm btn-outline-warning">
+                                                    <i class="fas fa-eye"></i> 詳細
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endwith %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">ユーザーが登録されていません。</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{% url 'reservations:admin_dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> 管理画面に戻る
+        </a>
+    </div>
+</div>
+{% endblock %}
+

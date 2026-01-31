@@ -138,6 +138,9 @@ class MemberProfile(models.Model):
     # プラン情報
     plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True, verbose_name='プラン')
     
+    # 特別ユーザーフラグ（3ヶ月先まで予約可能）
+    is_special_user = models.BooleanField(default=False, verbose_name='特別ユーザー')
+    
     # 顔写真
     photo = models.ImageField(upload_to=member_photo_upload_path, blank=True, null=True, verbose_name='顔写真')
     

@@ -1,0 +1,84 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}ユーザー編集 - U-街プラザ 東西南北館{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-user-edit text-warning"></i> ユーザー編集
+        </h1>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-info-circle"></i> {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-edit text-dark"></i> ユーザー情報
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>ユーザー名:</strong> {{ user.username }}<br>
+                    <strong>メールアドレス:</strong> {{ user.email }}<br>
+                    {% if profile %}
+                        <strong>氏名:</strong> {{ profile.full_name }}
+                    {% endif %}
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_special_user }}
+                            <label class="form-check-label" for="{{ form.is_special_user.id_for_label }}">
+                                <i class="fas fa-star"></i> {{ form.is_special_user.label }}
+                            </label>
+                        </div>
+                        {% if form.is_special_user.errors %}
+                            <div class="text-danger">
+                                {% for error in form.is_special_user.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            特別ユーザーに設定すると、3ヶ月先まで予約可能になります。一般ユーザーは1ヶ月先までです。
+                        </small>
+                    </div>
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'reservations:user_detail' pk=user.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> キャンセル
+                        </a>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save"></i> 保存
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

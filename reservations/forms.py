@@ -66,6 +66,24 @@ class ReservationForm(forms.ModelForm):
                 # MemberProfileが存在しない場合は、Userの情報を使用
                 self.fields['customer_name'].initial = self.user.get_full_name() or self.user.username
                 self.fields['customer_email'].initial = self.user.email
+        
+        # 予約可能期間の制限を設定（一般ユーザーは1ヶ月、特別ユーザーは3ヶ月）
+        from datetime import timedelta
+        today = date.today()
+        max_days = 30  # デフォルトは1ヶ月
+        
+        if self.user and self.user.is_authenticated:
+            try:
+                profile = MemberProfile.objects.get(user=self.user)
+                if profile.is_special_user:
+                    max_days = 90  # 特別ユーザーは3ヶ月
+            except MemberProfile.DoesNotExist:
+                pass
+        
+        max_date = today + timedelta(days=max_days)
+        # 日付入力フィールドにmax属性を設定
+        self.fields['date'].widget.attrs['max'] = max_date.isoformat()
+        self.fields['date'].widget.attrs['min'] = today.isoformat()
 
     def clean(self):
         cleaned_data = super().clean()
@@ -142,6 +160,28 @@ class ReservationForm(forms.ModelForm):
             # 過去の日付は予約できない
             if reservation_date < date.today():
                 raise ValidationError('過去の日付は予約できません。')
+            
+            # 予約可能期間のチェック（一般ユーザーは1ヶ月、特別ユーザーは3ヶ月）
+            today = date.today()
+            max_days = 30  # デフォルトは1ヶ月
+            
+            # ログイン済みユーザーの場合、特別ユーザーかどうかを確認
+            if self.user and self.user.is_authenticated:
+                try:
+                    profile = MemberProfile.objects.get(user=self.user)
+                    if profile.is_special_user:
+                        max_days = 90  # 特別ユーザーは3ヶ月
+                except MemberProfile.DoesNotExist:
+                    pass  # MemberProfileが存在しない場合は一般ユーザーとして扱う
+            
+            from datetime import timedelta
+            max_date = today + timedelta(days=max_days)
+            
+            if reservation_date > max_date:
+                if max_days == 90:
+                    raise ValidationError(f'予約は当日から3ヶ月先まで可能です。選択された日付は範囲外です。')
+                else:
+                    raise ValidationError(f'予約は当日から1ヶ月先まで可能です。選択された日付は範囲外です。')
 
         return cleaned_data
 
@@ -160,24 +200,16 @@ class TimeSlotForm(forms.ModelForm):
         cleaned_data = super().clean()
         start_time = cleaned_data.get('start_time')
         end_time = cleaned_data.get('end_time')
-
+        
         if start_time and end_time:
             if start_time >= end_time:
-                raise forms.ValidationError('終了時間は開始時間より後にしてください。')
-            
-            # 重複チェック
-            existing_slot = TimeSlot.objects.filter(
-                start_time=start_time,
-                end_time=end_time
-            ).exclude(pk=self.instance.pk if self.instance else None)
-            
-            if existing_slot.exists():
-                raise forms.ValidationError('同じ時間枠が既に存在します。')
-
+                raise ValidationError('開始時間は終了時間より前である必要があります。')
+        
         return cleaned_data
 
+
 class PlanForm(forms.ModelForm):
-    """プランフォーム"""
+    """会員プランフォーム"""
     class Meta:
         model = Plan
         fields = ['name', 'description', 'price', 'is_default', 'is_active']
@@ -189,38 +221,27 @@ class PlanForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-    def clean(self):
-        cleaned_data = super().clean()
-        is_default = cleaned_data.get('is_default')
-        
-        # デフォルトプランが複数存在しないようにする
+    def clean_is_default(self):
+        is_default = self.cleaned_data.get('is_default')
         if is_default:
-            existing_default = Plan.objects.filter(is_default=True).exclude(pk=self.instance.pk if self.instance else None)
-            if existing_default.exists():
-                raise forms.ValidationError('デフォルトプランは1つだけ設定できます。既存のデフォルトプランを解除してから設定してください。')
-        
-        return cleaned_data
+            # 既にデフォルトプランが存在し、それが現在のインスタンスでない場合
+            if Plan.objects.filter(is_default=True).exclude(pk=self.instance.pk if self.instance else None).exists():
+                raise forms.ValidationError('デフォルトプランは1つしか設定できません。')
+        return is_default
+
 
 class ReservationSearchForm(forms.Form):
     """予約検索フォーム"""
     location = forms.ModelChoiceField(
         queryset=Location.objects.filter(is_active=True),
         required=False,
-        empty_label="すべての場所",
-        label="場所",
+        label='場所',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
     date = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-        label="日付"
-    )
-    time_slot = forms.ModelChoiceField(
-        queryset=TimeSlot.objects.filter(is_active=True),
-        required=False,
-        empty_label="すべての時間枠",
-        label="時間枠",
-        widget=forms.Select(attrs={'class': 'form-select'})
+        label='日付',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
     )
 
 
@@ -282,8 +303,7 @@ class MemberRegistrationStep1Form(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '例: 123-4567',
-            'id': 'postal_code'
+            'placeholder': '例: 123-4567'
         })
     )
     address = forms.CharField(
@@ -291,54 +311,36 @@ class MemberRegistrationStep1Form(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={
             'class': 'form-control',
-            'rows': 3,
-            'placeholder': '住所を入力してください',
-            'id': 'address'
+            'rows': 2,
+            'placeholder': '住所を入力してください'
         })
     )
 
-    def clean_password(self):
+    def clean_password_confirm(self):
         password = self.cleaned_data.get('password')
-        if password:
-            # 英数字8文字以上チェック
-            if len(password) < 8:
-                raise ValidationError('パスワードは8文字以上で入力してください。')
-            if not re.match(r'^[a-zA-Z0-9]+$', password):
-                raise ValidationError('パスワードは英数字のみ使用できます。')
-        return password
+        password_confirm = self.cleaned_data.get('password_confirm')
+        if password and password_confirm and password != password_confirm:
+            raise forms.ValidationError('パスワードが一致しません。')
+        return password_confirm
 
-    def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get('password')
-        password_confirm = cleaned_data.get('password_confirm')
-
-        if password and password_confirm:
-            if password != password_confirm:
-                raise ValidationError('パスワードが一致しません。')
-
-        return cleaned_data
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and User.objects.filter(email=email).exists():
+            raise forms.ValidationError('このメールアドレスは既に登録されています。')
+        return email
 
 
-# 会員登録フォーム - Step2: プラン選択
 class MemberRegistrationStep2Form(forms.Form):
     """会員登録 Step2: プラン選択"""
     plan = forms.ModelChoiceField(
         queryset=Plan.objects.filter(is_active=True),
         label='プラン',
-        required=True,
+        required=False,
         widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
-        empty_label=None
+        empty_label='プランを選択しない'
     )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # デフォルトプランを設定
-        default_plan = Plan.objects.filter(is_default=True, is_active=True).first()
-        if default_plan:
-            self.fields['plan'].initial = default_plan
 
-
-# 会員登録フォーム - Step3: 顔写真登録
 class MemberRegistrationStep3Form(forms.Form):
     """会員登録 Step3: 顔写真登録"""
     photo = forms.ImageField(
@@ -346,24 +348,21 @@ class MemberRegistrationStep3Form(forms.Form):
         required=False,
         widget=forms.FileInput(attrs={
             'class': 'form-control',
-            'accept': 'image/*',
-            'id': 'photo_upload'
+            'accept': 'image/*'
         })
     )
 
 
-# 会員登録フォーム - Step4: クレジットカード情報
 class MemberRegistrationStep4Form(forms.Form):
     """会員登録 Step4: クレジットカード情報"""
     card_number = forms.CharField(
         max_length=19,
-        label='クレジットカード番号',
+        label='カード番号',
         required=True,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
             'placeholder': '1234-5678-9012-3456',
-            'maxlength': '19',
-            'id': 'card_number'
+            'pattern': '[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{4}'
         })
     )
     card_expiry_month = forms.IntegerField(
@@ -373,50 +372,43 @@ class MemberRegistrationStep4Form(forms.Form):
         max_value=12,
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
-            'min': '1',
-            'max': '12',
-            'id': 'card_expiry_month'
+            'min': 1,
+            'max': 12,
+            'placeholder': 'MM'
         })
     )
     card_expiry_year = forms.IntegerField(
         label='有効期限（年）',
         required=True,
-        min_value=date.today().year,
+        min_value=2024,
+        max_value=2099,
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
-            'min': str(date.today().year),
-            'id': 'card_expiry_year'
+            'min': 2024,
+            'max': 2099,
+            'placeholder': 'YYYY'
         })
     )
     card_cvc = forms.CharField(
         max_length=4,
         label='CVC',
         required=True,
-        widget=forms.PasswordInput(attrs={
+        widget=forms.TextInput(attrs={
             'class': 'form-control',
             'placeholder': '123',
-            'maxlength': '4',
-            'id': 'card_cvc'
-        }),
-        min_length=3
+            'pattern': '[0-9]{3,4}'
+        })
     )
 
-    def clean_card_number(self):
-        card_number = self.cleaned_data.get('card_number')
-        if card_number:
-            # ハイフンを除去して数字のみチェック
-            card_number_clean = card_number.replace('-', '').replace(' ', '')
-            if not card_number_clean.isdigit():
-                raise ValidationError('カード番号は数字のみで入力してください。')
-            if len(card_number_clean) < 13 or len(card_number_clean) > 19:
-                raise ValidationError('カード番号の桁数が正しくありません。')
-        return card_number
 
-    def clean_card_cvc(self):
-        card_cvc = self.cleaned_data.get('card_cvc')
-        if card_cvc:
-            if not card_cvc.isdigit():
-                raise ValidationError('CVCは数字のみで入力してください。')
-            if len(card_cvc) < 3 or len(card_cvc) > 4:
-                raise ValidationError('CVCは3桁または4桁で入力してください。')
-        return card_cvc
+class UserEditForm(forms.ModelForm):
+    """ユーザー編集フォーム（MemberProfileのis_special_userを編集）"""
+    class Meta:
+        model = MemberProfile
+        fields = ['is_special_user']
+        widgets = {
+            'is_special_user': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'is_special_user': '特別ユーザー（3ヶ月先まで予約可能）',
+        }
