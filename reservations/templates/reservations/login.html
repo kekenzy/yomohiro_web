@@ -17,7 +17,7 @@
                         <h5 class="alert-heading">
                             <i class="fas fa-exclamation-triangle"></i> ログインエラー
                         </h5>
-                        <p class="mb-0">ユーザー名またはパスワードが正しくありません。</p>
+                        <p class="mb-0">ユーザー名(メールアドレス)またはパスワードが正しくありません。</p>
                     </div>
                 {% endif %}
                 
@@ -25,7 +25,7 @@
                     {% csrf_token %}
                     <div class="mb-3">
                         <label for="id_username" class="form-label">
-                            <i class="fas fa-user text-warning"></i> ユーザー名
+                            <i class="fas fa-user text-warning"></i> ユーザー名(メールアドレス)
                         </label>
                         <input type="text" name="username" class="form-control" id="id_username" required>
                     </div>
