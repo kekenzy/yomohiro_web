@@ -100,6 +100,20 @@
                     </h2>
                 </div>
                 <div class="card-body">
+                    <!-- 場所選択プルダウン -->
+                    <div class="mb-3">
+                        <label for="location-select" class="form-label">
+                            <i class="fas fa-map-marker-alt"></i> 場所
+                        </label>
+                        <select id="location-select" class="form-select form-select-lg">
+                            {% for loc in locations %}
+                                <option value="{{ loc.id }}" {% if loc.id == location.id %}selected{% endif %}>
+                                    {{ loc.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
                     <!-- 週のナビゲーション -->
                     <div class="week-navigation">
                         <a href="?location={{ location.id }}&week_start={{ prev_week|date:'Y-m-d' }}" class="btn btn-outline-warning">

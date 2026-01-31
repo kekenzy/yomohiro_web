@@ -1671,8 +1671,12 @@ def reservation_weekly_calendar(request):
             })
         availability_data.append(slot_data)
     
+    # すべてのアクティブな場所を取得（プルダウン用）
+    all_locations = Location.objects.filter(is_active=True).order_by('name')
+    
     context = {
         'location': location,
+        'locations': all_locations,
         'week_start': week_start,
         'week_dates': week_dates,
         'time_slots': all_time_slots,
