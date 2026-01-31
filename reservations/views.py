@@ -2178,13 +2178,11 @@ def user_profile(request):
 from .models import PaymentTransaction
 
 try:
-    from square import Square
-    from square.environment import SquareEnvironment
+    from square.client import Client
     SQUARE_AVAILABLE = True
 except ImportError:
     SQUARE_AVAILABLE = False
-    Square = None
-    SquareEnvironment = None
+    Client = None
 
 
 def get_square_client():
@@ -2194,10 +2192,11 @@ def get_square_client():
     
     from django.conf import settings
     
-    environment = SquareEnvironment.SANDBOX if settings.SQUARE_ENVIRONMENT == 'sandbox' else SquareEnvironment.PRODUCTION
+    # 環境設定（'sandbox' または 'production'）
+    environment = 'sandbox' if settings.SQUARE_ENVIRONMENT == 'sandbox' else 'production'
     
-    client = Square(
-        token=settings.SQUARE_ACCESS_TOKEN,
+    client = Client(
+        access_token=settings.SQUARE_ACCESS_TOKEN,
         environment=environment
     )
     
