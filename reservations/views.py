@@ -2248,51 +2248,65 @@ def create_payment_link(request, amount, order_id=None, description=''):
             }
         
         # レスポンスボディから決済リンク情報を取得
-        # デバッグ: レスポンス構造を確認
+        # Square SDK 39.1.0のレスポンス構造を確認
         import logging
         logger = logging.getLogger(__name__)
         
-        # レスポンスの構造を確認
+        # レスポンスが成功しているか確認
+        if hasattr(result, 'is_success') and result.is_success():
+            # 成功の場合、bodyからpayment_linkを取得
+            if hasattr(result, 'body') and result.body:
+                # result.body.payment_link を確認
+                if hasattr(result.body, 'payment_link'):
+                    payment_link = result.body.payment_link
+                # result.body自体がpayment_linkの場合
+                elif hasattr(result.body, 'id') and hasattr(result.body, 'url'):
+                    payment_link = result.body
+                else:
+                    # レスポンス構造をログに記録
+                    body_attrs = [attr for attr in dir(result.body) if not attr.startswith('_')]
+                    logger.error(f"Unknown response structure. Body type: {type(result.body)}, Body attributes: {body_attrs}")
+                    # 辞書形式の場合も試す
+                    if isinstance(result.body, dict):
+                        payment_link = result.body.get('payment_link') or result.body
+                    else:
+                        return {
+                            'success': False,
+                            'errors': [f'決済リンクの作成に失敗しました。レスポンス形式が不明です。Body type: {type(result.body)}, Attributes: {body_attrs}']
+                        }
+                
+                # payment_linkから情報を取得
+                if payment_link:
+                    # オブジェクト形式の場合
+                    if hasattr(payment_link, 'id'):
+                        payment_link_id = payment_link.id
+                        payment_link_url = getattr(payment_link, 'url', None)
+                        order_id = getattr(payment_link, 'order_id', None)
+                    # 辞書形式の場合
+                    elif isinstance(payment_link, dict):
+                        payment_link_id = payment_link.get('id')
+                        payment_link_url = payment_link.get('url')
+                        order_id = payment_link.get('order_id')
+                    else:
+                        return {
+                            'success': False,
+                            'errors': ['決済リンクの作成に失敗しました。レスポンス形式が不明です。']
+                        }
+                    
+                    if payment_link_id and payment_link_url:
+                        return {
+                            'success': True,
+                            'payment_link_id': payment_link_id,
+                            'payment_link_url': payment_link_url,
+                            'order_id': order_id
+                        }
+        
+        # エラーまたは不明なレスポンス形式
         result_attrs = [attr for attr in dir(result) if not attr.startswith('_')]
-        logger.debug(f"Result attributes: {result_attrs}")
-        
-        if hasattr(result, 'body') and result.body:
-            body_attrs = [attr for attr in dir(result.body) if not attr.startswith('_')]
-            logger.debug(f"Body attributes: {body_attrs}")
-            
-            # result.body.payment_link または result.body から取得
-            payment_link = None
-            if hasattr(result.body, 'payment_link'):
-                payment_link = result.body.payment_link
-            elif hasattr(result.body, 'id'):  # result.body自体がpayment_linkの場合
-                payment_link = result.body
-            else:
-                # より詳細なデバッグ情報
-                logger.error(f"Unknown response structure. Body type: {type(result.body)}, Body attributes: {body_attrs}")
-                return {
-                    'success': False,
-                    'errors': [f'決済リンクの作成に失敗しました。レスポンス形式が不明です。Body attributes: {body_attrs}']
-                }
-            
-            if payment_link:
-                payment_link_id = payment_link.id if hasattr(payment_link, 'id') else None
-                payment_link_url = payment_link.url if hasattr(payment_link, 'url') else None
-                order_id = payment_link.order_id if hasattr(payment_link, 'order_id') else None
-                
-                logger.debug(f"Payment link - ID: {payment_link_id}, URL: {payment_link_url}, Order ID: {order_id}")
-                
-                return {
-                    'success': True,
-                    'payment_link_id': payment_link_id,
-                    'payment_link_url': payment_link_url,
-                    'order_id': order_id
-                }
-        
-        # result.bodyが存在しない場合
-        logger.error(f"Result has no body. Result type: {type(result)}, Result attributes: {result_attrs}")
+        logger.error(f"Failed to create payment link. Result type: {type(result)}, Attributes: {result_attrs}")
         return {
             'success': False,
-            'errors': [f'決済リンクの作成に失敗しました。レスポンス形式が不明です。Result attributes: {result_attrs}']
+            'errors': ['決済リンクの作成に失敗しました。レスポンス形式が不明です。']
         }
     
     except Exception as e:
