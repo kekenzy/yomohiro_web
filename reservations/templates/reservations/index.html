@@ -97,6 +97,18 @@
         background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
         border-radius: 2px;
     }
+    .hero-reservation-btn {
+        font-size: 1.5rem;
+        padding: 1rem 2.5rem;
+        font-weight: bold;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+    }
+    .hero-reservation-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
 </style>
 {% endblock %}
 
@@ -127,12 +139,12 @@
                         </a>
                     {% elif user.is_authenticated %}
                         <!-- 一般ユーザー向けメニュー -->
-                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light btn-lg">
+                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light hero-reservation-btn">
                             <i class="fas fa-calendar-plus"></i> 予約
                         </a>
                     {% else %}
                         <!-- 一般ユーザー向けメニュー -->
-                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light btn-lg">
+                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light hero-reservation-btn">
                             <i class="fas fa-calendar-plus"></i> 予約
                         </a>
                     {% endif %}
