@@ -177,13 +177,15 @@
                                                         {% else %}
                                                             style="pointer-events: none; cursor: not-allowed;"
                                                         {% endif %}>
-                                                        {% if availability.is_available %}
-                                                            ◎
-                                                        {% elif availability.is_booked_by_others %}
-                                                            <strong style="color: #dc3545; font-size: 1.2rem;">✕</strong>
-                                                        {% else %}
-                                                            -
-                                                        {% endif %}
+                                                        <span class="slot-content">
+                                                            {% if availability.is_available %}
+                                                                ◎
+                                                            {% elif availability.is_booked_by_others %}
+                                                                <strong style="color: #dc3545; font-size: 1.2rem;">✕</strong>
+                                                            {% else %}
+                                                                -
+                                                            {% endif %}
+                                                        </span>
                                                     </td>
                                                 {% endwith %}
                                             {% endfor %}
