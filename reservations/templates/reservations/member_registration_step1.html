@@ -51,6 +51,11 @@
 
                 <h4 class="mb-4">Step1: 基本情報</h4>
 
+                <p class="small text-muted mb-3">
+                    氏名・メール・パスワードだけで登録したい場合は
+                    <a href="{% url 'reservations:member_registration_simple' %}">簡易会員登録</a>をご利用ください。
+                </p>
+
                 {% if form.errors %}
                     <div class="alert alert-danger">
                         <h5 class="alert-heading">
@@ -147,7 +152,7 @@
 
                     <div class="mb-3">
                         <label for="{{ form.phone.id_for_label }}" class="form-label">
-                            電話番号 <span class="required-mark">★</span>
+                            電話番号
                         </label>
                         {{ form.phone }}
                         {% if form.phone.errors %}

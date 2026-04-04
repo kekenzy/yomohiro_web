@@ -125,7 +125,7 @@
                 <div class="d-flex justify-content-center gap-3 flex-wrap">
                     {% if user.is_authenticated and user.is_superuser %}
                         <!-- 管理者向けメニュー -->
-                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light btn-lg">
+                        <a href="{% url 'reservations:reservation_weekly_calendar' %}" class="btn btn-light btn-lg">
                             <i class="fas fa-calendar-plus"></i> 新規予約作成
                         </a>
                         <a href="{% url 'reservations:reservation_list' %}" class="btn btn-light btn-lg">
@@ -139,12 +139,12 @@
                         </a>
                     {% elif user.is_authenticated %}
                         <!-- 一般ユーザー向けメニュー -->
-                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light hero-reservation-btn">
+                        <a href="{% url 'reservations:reservation_weekly_calendar' %}" class="btn btn-light hero-reservation-btn">
                             <i class="fas fa-calendar-plus"></i> 予約
                         </a>
                     {% else %}
                         <!-- 一般ユーザー向けメニュー -->
-                        <a href="{% url 'reservations:reservation_create' %}" class="btn btn-light hero-reservation-btn">
+                        <a href="{% url 'reservations:reservation_weekly_calendar' %}" class="btn btn-light hero-reservation-btn">
                             <i class="fas fa-calendar-plus"></i> 予約
                         </a>
                     {% endif %}
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
         card.addEventListener('click', function() {
             const locationId = this.getAttribute('data-location-id');
             if (locationId) {
-                window.location.href = `{% url 'reservations:reservation_create' %}?location=${locationId}`;
+                window.location.href = `{% url 'reservations:reservation_weekly_calendar' %}?location=${locationId}`;
             }
         });
     });
@@ -492,7 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
             dateClick: function(info) {
                 // 日付クリック時に新規予約画面に遷移（選択した日付をクエリパラメータとして渡す）
                 const clickedDate = info.dateStr; // YYYY-MM-DD形式
-                window.location.href = `{% url 'reservations:reservation_create' %}?date=${clickedDate}`;
+                window.location.href = `{% url 'reservations:reservation_weekly_calendar' %}?week_start=${clickedDate}`;
             },
             eventClick: function(info) {
                 // イベントクリック時に予約詳細画面に遷移

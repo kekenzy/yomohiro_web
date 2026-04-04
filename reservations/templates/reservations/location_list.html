@@ -26,7 +26,7 @@
                                         {% endif %}
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="badge bg-warning text-dark">{{ location.capacity }}名</span>
-                                            <a href="{% url 'reservations:reservation_create' %}?location={{ location.id }}" class="btn btn-warning btn-sm">
+                                            <a href="{% url 'reservations:reservation_weekly_calendar' %}?location={{ location.id }}" class="btn btn-warning btn-sm">
                                                 <i class="fas fa-calendar-plus"></i> 予約する
                                             </a>
                                         </div>

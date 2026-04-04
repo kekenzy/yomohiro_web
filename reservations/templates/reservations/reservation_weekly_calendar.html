@@ -86,6 +86,52 @@
         border-radius: 0.25rem;
         margin-bottom: 1rem;
     }
+    .slot-mine-readonly {
+        background-color: #cfe2ff !important;
+        color: #084298 !important;
+        font-weight: bold;
+        cursor: default !important;
+    }
+    .slot-mine-nav {
+        padding: 0 !important;
+        vertical-align: middle !important;
+    }
+    .slot-mine-nav-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2rem;
+        padding: 0.35rem;
+        color: #084298 !important;
+        font-weight: bold;
+        text-decoration: none !important;
+        border: 2px solid #0d6efd;
+        border-radius: 0.25rem;
+        background-color: #cfe2ff !important;
+        transition: background-color 0.15s, color 0.15s;
+    }
+    .slot-mine-nav-link:hover {
+        background-color: #9ec5fe !important;
+        color: #052c65 !important;
+    }
+    .slot-mine-nav-link .slot-label {
+        font-size: 1.1rem;
+    }
+    .slot-mine-toggle {
+        background-color: #cfe2ff !important;
+        color: #084298 !important;
+        font-weight: bold;
+        cursor: pointer !important;
+    }
+    .slot-mine-detail-link {
+        font-size: 0.65rem;
+        line-height: 1;
+        margin-top: 0.15rem;
+    }
+    .slot-mine-toggle.slot-selected {
+        background-color: #ffb6c1 !important;
+        color: #000 !important;
+    }
 </style>
 {% endblock %}
 
@@ -97,6 +143,7 @@
                 <div class="card-header bg-warning text-dark">
                     <h2 class="card-title mb-0">
                         <i class="fas fa-calendar-week text-dark"></i> 週間カレンダー - {{ location.name }}
+                        {% if edit_mode %}<span class="badge bg-info text-dark ms-2">予約の変更</span>{% endif %}
                     </h2>
                 </div>
                 <div class="card-body">
@@ -116,13 +163,13 @@
                     
                     <!-- 週のナビゲーション -->
                     <div class="week-navigation">
-                        <a href="?location={{ location.id }}&week_start={{ prev_week|date:'Y-m-d' }}" class="btn btn-outline-warning">
+                        <a href="?location={{ location.id }}&week_start={{ prev_week|date:'Y-m-d' }}{% if edit_reservation_pk %}&edit_reservation={{ edit_reservation_pk }}{% endif %}" class="btn btn-outline-warning">
                             <i class="fas fa-chevron-left"></i> 前の週
                         </a>
                         <h5 class="mb-0">
                             {{ week_start|date:"Y年m月d日" }} ～ {{ week_dates|last|date:"m月d日" }}
                         </h5>
-                        <a href="?location={{ location.id }}&week_start={{ next_week|date:'Y-m-d' }}" class="btn btn-outline-warning">
+                        <a href="?location={{ location.id }}&week_start={{ next_week|date:'Y-m-d' }}{% if edit_reservation_pk %}&edit_reservation={{ edit_reservation_pk }}{% endif %}" class="btn btn-outline-warning">
                             次の週 <i class="fas fa-chevron-right"></i>
                         </a>
                     </div>
@@ -135,6 +182,20 @@
                             <i class="fas fa-arrow-right"></i> 予約フォームへ進む
                         </button>
                     </div>
+
+                    {% if edit_mode and edit_reservation_pk %}
+                    <div id="edit-delete-panel" class="alert alert-danger mt-3" style="display: none;">
+                        <h6 class="alert-heading"><i class="fas fa-trash-alt"></i> すべての枠の選択を外しました</h6>
+                        <p class="mb-2 small">この日・この場所の自分の予約をすべて削除します。よろしいですか？</p>
+                        <form method="post" action="{% url 'reservations:reservation_weekly_calendar_delete_all' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="edit_reservation" value="{{ edit_reservation_pk }}">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> 予約をすべて削除
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
 
                     <!-- 週間カレンダーテーブル -->
                     <div class="table-responsive">
@@ -182,25 +243,43 @@
                                             <td class="time-cell">{{ slot.start_time|time:"H:i" }}</td>
                                             {% for date_info in slot_data.dates %}
                                                 {% with d=date_info.date availability=date_info %}
-                                                    <td class="slot-cell {% if availability.is_available %}slot-available{% elif availability.is_booked_by_others %}slot-unavailable{% else %}slot-not-applicable{% endif %}"
+                                                    {% if availability.is_my_reservation and availability.reservation_pk and not edit_mode %}
+                                                    <td class="slot-cell slot-mine-nav"
+                                                        data-date="{{ d|date:'Y-m-d' }}"
+                                                        data-slot-id="{{ slot.id }}"
+                                                        data-slot-time="{{ slot.start_time|time:'H:i' }}-{{ slot.end_time|time:'H:i' }}">
+                                                        <a href="{% url 'reservations:reservation_detail' availability.reservation_pk %}" class="slot-mine-nav-link" title="予約詳細を開く">
+                                                            <span class="slot-content slot-label"><i class="fas fa-user-check me-1"></i>予</span>
+                                                        </a>
+                                                    </td>
+                                                    {% else %}
+                                                    <td class="slot-cell {% if availability.is_out_of_range %}slot-not-applicable{% elif availability.is_booked_by_others %}slot-unavailable{% elif availability.is_my_reservation %}{% if edit_mode %}slot-mine-toggle{% else %}slot-mine-readonly{% endif %}{% elif availability.is_available %}slot-available{% else %}slot-not-applicable{% endif %}"
                                                         data-date="{{ d|date:'Y-m-d' }}"
                                                         data-slot-id="{{ slot.id }}"
                                                         data-slot-time="{{ slot.start_time|time:'H:i' }}-{{ slot.end_time|time:'H:i' }}"
-                                                        {% if availability.is_available %}
+                                                        {% if availability.is_available or edit_mode and availability.is_my_reservation %}
                                                             onclick="toggleSlot(this)"
                                                         {% else %}
                                                             style="pointer-events: none; cursor: not-allowed;"
                                                         {% endif %}>
-                                                        <span class="slot-content">
-                                                            {% if availability.is_available %}
-                                                                ◎
+                                                        <span class="slot-content d-flex flex-column align-items-center justify-content-center">
+                                                            {% if availability.is_out_of_range %}
+                                                                -
                                                             {% elif availability.is_booked_by_others %}
                                                                 <strong style="color: #fff; font-size: 1.2rem;">✕</strong>
+                                                            {% elif availability.is_my_reservation %}
+                                                                <span><i class="fas fa-user-check"></i> 予</span>
+                                                                {% if edit_mode and availability.reservation_pk %}
+                                                                <a href="{% url 'reservations:reservation_detail' availability.reservation_pk %}" class="slot-mine-detail-link text-primary" onclick="event.stopPropagation();">詳細</a>
+                                                                {% endif %}
+                                                            {% elif availability.is_available %}
+                                                                ◎
                                                             {% else %}
                                                                 -
                                                             {% endif %}
                                                         </span>
                                                     </td>
+                                                    {% endif %}
                                                 {% endwith %}
                                             {% endfor %}
                                         </tr>
@@ -215,18 +294,16 @@
                         <small>
                             <strong>凡例:</strong>
                             <span class="slot-available">◎</span> 利用可能 / 
-                            <span class="slot-unavailable"><strong>✕</strong></span> 予約済み（利用不可） / 
+                            <span class="slot-unavailable"><strong>✕</strong></span> 予約済み（他） / 
+                            <span class="slot-mine-nav-link" style="display:inline-block;padding:2px 6px;font-size:0.85rem;"><i class="fas fa-user-check"></i> 予</span> 自分の予約（クリックで詳細） / 
                             <span class="slot-not-applicable">-</span> 該当なし
                         </small>
                     </div>
 
                     <!-- アクションボタン -->
-                    <div class="mt-3 d-flex justify-content-between">
-                        <a href="{% url 'reservations:reservation_create' %}?location={{ location.id }}&use_weekly=false" class="btn btn-secondary">
+                    <div class="mt-3 d-flex justify-content-start">
+                        <a href="{% url 'reservations:index' %}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i> 戻る
-                        </a>
-                        <a href="{% url 'reservations:reservation_create' %}?use_weekly=false" class="btn btn-outline-warning">
-                            <i class="fas fa-calendar"></i> 通常の予約フォームへ
                         </a>
                     </div>
                 </div>
@@ -238,12 +315,16 @@
 
 {% block extra_js %}
 <script>
+const EDIT_MODE = {{ edit_mode|yesno:"true,false" }};
+const EDIT_RESERVATION_PK = {% if edit_reservation_pk %}{{ edit_reservation_pk }}{% else %}null{% endif %};
+const EDIT_INITIAL_SLOT_COUNT = {{ edit_initial_slot_count|default:0 }};
+
 // 選択された時間枠を管理
 let selectedSlots = new Map(); // key: "date-slotId", value: {date, slotId, slotTime}
 
 // テンプレートフィルタの代替（DjangoテンプレートフィルタをJavaScriptで処理）
 function toggleSlot(cell) {
-    // 予約済みのセルはクリックできないようにする
+    // 予約済み（他）のセルはクリックできない
     if (cell.classList.contains('slot-unavailable') || cell.style.pointerEvents === 'none') {
         return;
     }
@@ -254,11 +335,9 @@ function toggleSlot(cell) {
     const key = `${date}-${slotId}`;
     
     if (selectedSlots.has(key)) {
-        // 選択解除
         selectedSlots.delete(key);
         cell.classList.remove('slot-selected');
     } else {
-        // 選択
         selectedSlots.set(key, {
             date: date,
             slotId: slotId,
@@ -266,7 +345,7 @@ function toggleSlot(cell) {
         });
         cell.classList.add('slot-selected');
     }
-    
+
     updateSelectedSlotsInfo();
 }
 
@@ -274,14 +353,25 @@ function updateSelectedSlotsInfo() {
     const infoDiv = document.getElementById('selected-slots-info');
     const listDiv = document.getElementById('selected-slots-list');
     const proceedBtn = document.getElementById('proceed-to-form-btn');
-    
-    if (selectedSlots.size === 0) {
-        infoDiv.style.display = 'none';
+    const deletePanel = document.getElementById('edit-delete-panel');
+
+    if (EDIT_MODE && EDIT_INITIAL_SLOT_COUNT > 0 && selectedSlots.size === 0) {
+        if (infoDiv) infoDiv.style.display = 'none';
+        if (proceedBtn) proceedBtn.style.display = 'none';
+        if (deletePanel) deletePanel.style.display = 'block';
         return;
     }
-    
-    infoDiv.style.display = 'block';
-    
+    if (deletePanel) deletePanel.style.display = 'none';
+
+    if (selectedSlots.size === 0) {
+        if (infoDiv) infoDiv.style.display = 'none';
+        if (proceedBtn) proceedBtn.style.display = 'none';
+        return;
+    }
+
+    if (infoDiv) infoDiv.style.display = 'block';
+    if (proceedBtn) proceedBtn.style.display = 'block';
+
     // 日付ごとにグループ化
     const groupedByDate = {};
     selectedSlots.forEach((slot, key) => {
@@ -302,9 +392,8 @@ function updateSelectedSlotsInfo() {
         html += '</li>';
     });
     html += '</ul>';
-    
-    listDiv.innerHTML = html;
-    proceedBtn.style.display = 'block';
+
+    if (listDiv) listDiv.innerHTML = html;
 }
 
 // 予約フォームへ進む
@@ -313,61 +402,81 @@ document.getElementById('proceed-to-form-btn').addEventListener('click', functio
         alert('時間枠を選択してください。');
         return;
     }
-    
-    // 日付ごとにグループ化
+
     const groupedByDate = {};
-    selectedSlots.forEach((slot, key) => {
+    selectedSlots.forEach((slot) => {
         if (!groupedByDate[slot.date]) {
             groupedByDate[slot.date] = [];
         }
-        // 時間枠IDを整数として保存
-        groupedByDate[slot.date].push(parseInt(slot.slotId));
+        groupedByDate[slot.date].push(parseInt(slot.slotId, 10));
     });
-    
-    // 複数日の予約データをJSON形式でエンコード
+
+    if (EDIT_MODE && EDIT_RESERVATION_PK) {
+        const dates = Object.keys(groupedByDate).sort();
+        if (dates.length !== 1) {
+            alert('予約の変更は同一日の連続枠のみ対応しています。1日分にまとめて選択してください。');
+            return;
+        }
+        const d = dates[0];
+        const ids = groupedByDate[d].join(',');
+        const url = new URL('{% url "reservations:reservation_create" %}', window.location.origin);
+        url.searchParams.set('location', '{{ location.id }}');
+        url.searchParams.set('date', d);
+        url.searchParams.set('time_slots', ids);
+        url.searchParams.set('use_weekly', 'false');
+        url.searchParams.set('edit_reservation', String(EDIT_RESERVATION_PK));
+        window.location.href = url.toString();
+        return;
+    }
+
     const multiDateData = JSON.stringify(groupedByDate);
-    console.log('Multi-date data:', multiDateData); // デバッグ用
-    
-    // 予約フォームにリダイレクト（複数日の予約データをパラメータとして渡す）
-    // use_weekly=falseを追加して、再度週間カレンダーに自動遷移しないようにする
     const url = new URL('{% url "reservations:reservation_create" %}', window.location.origin);
     url.searchParams.set('location', '{{ location.id }}');
     url.searchParams.set('multi_date_slots', encodeURIComponent(multiDateData));
     url.searchParams.set('use_weekly', 'false');
-    
+
     window.location.href = url.toString();
 });
 
-// 場所選択プルダウンの変更時に週間カレンダーを再読み込み
+// 場所変更時はその場所の週を表示（edit_reservation は付けない。付けると別場所を選んでもサーバが元の場所へ戻すため反映されない）
 document.getElementById('location-select').addEventListener('change', function() {
     const locationId = this.value;
     const urlParams = new URLSearchParams(window.location.search);
     const weekStart = urlParams.get('week_start');
-    
-    // 新しいURLを構築
+
     let newUrl = `{% url 'reservations:reservation_weekly_calendar' %}?location=${locationId}`;
     if (weekStart) {
-        newUrl += `&week_start=${weekStart}`;
+        newUrl += `&week_start=${encodeURIComponent(weekStart)}`;
     }
-    
+
     window.location.href = newUrl;
 });
 
-// ページ読み込み時に選択された時間枠があれば表示
+const INITIAL_SLOTS = {% if edit_mode %}{{ initial_slots_json|safe }}{% else %}null{% endif %};
+
 document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const preSelectedSlots = urlParams.get('time_slots');
     const preSelectedDate = urlParams.get('date');
-    
-    if (preSelectedSlots && preSelectedDate) {
-        const slotIds = preSelectedSlots.split(',');
-        slotIds.forEach(slotId => {
-            const cell = document.querySelector(`[data-date="${preSelectedDate}"][data-slot-id="${slotId}"]`);
+
+    if (EDIT_MODE && INITIAL_SLOTS && typeof INITIAL_SLOTS === 'object') {
+        Object.keys(INITIAL_SLOTS).forEach((d) => {
+            INITIAL_SLOTS[d].forEach((slotId) => {
+                const cell = document.querySelector(`[data-date="${d}"][data-slot-id="${slotId}"]`);
+                if (cell && (cell.classList.contains('slot-available') || cell.classList.contains('slot-mine-toggle'))) {
+                    toggleSlot(cell);
+                }
+            });
+        });
+    } else if (preSelectedSlots && preSelectedDate) {
+        preSelectedSlots.split(',').forEach((slotId) => {
+            const cell = document.querySelector(`[data-date="${preSelectedDate}"][data-slot-id="${slotId.trim()}"]`);
             if (cell && cell.classList.contains('slot-available')) {
                 toggleSlot(cell);
             }
         });
     }
+    updateSelectedSlotsInfo();
 });
 </script>
 {% endblock %}

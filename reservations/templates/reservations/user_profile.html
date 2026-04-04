@@ -50,7 +50,7 @@
                         </tr>
                         <tr>
                             <th>電話番号</th>
-                            <td>{{ profile.phone }}</td>
+                            <td>{{ profile.phone|default:"未登録" }}</td>
                         </tr>
                         <tr>
                             <th>郵便番号</th>

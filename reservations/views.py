@@ -22,9 +22,73 @@ from .models import Location, TimeSlot, Reservation, Plan, MemberProfile
 from .forms import (
     ReservationForm, ReservationSearchForm, LocationForm, TimeSlotForm, PlanForm,
     MemberRegistrationStep1Form, MemberRegistrationStep2Form,
-    MemberRegistrationStep3Form, MemberRegistrationStep4Form, UserEditForm
+    MemberRegistrationStep3Form, MemberRegistrationStep4Form, UserEditForm,
+    MemberRegistrationSimpleForm,
 )
 from .decorators import superuser_required
+
+
+def _consecutive_reservations_group(reservation):
+    """予約編集と同じく、同一日・同一場所・連続する時間枠のグループを返す。"""
+    consecutive = [reservation]
+    all_reservations = list(Reservation.objects.filter(
+        date=reservation.date,
+        location=reservation.location,
+        customer_email=reservation.customer_email,
+        status__in=['confirmed', 'pending'],
+    ).select_related('time_slot').order_by('time_slot__start_time'))
+    current_index = next((i for i, r in enumerate(all_reservations) if r.id == reservation.id), None)
+    if current_index is None:
+        return consecutive
+    for i in range(current_index - 1, -1, -1):
+        prev_reservation = all_reservations[i]
+        current_start = consecutive[0].time_slot.start_time
+        prev_end = prev_reservation.time_slot.end_time
+        if prev_end == current_start or (
+            datetime.combine(date.today(), current_start) - datetime.combine(date.today(), prev_end)
+        ).total_seconds() <= 60:
+            consecutive.insert(0, prev_reservation)
+        else:
+            break
+    for i in range(current_index + 1, len(all_reservations)):
+        next_reservation = all_reservations[i]
+        current_end = consecutive[-1].time_slot.end_time
+        next_start = next_reservation.time_slot.start_time
+        if current_end == next_start or (
+            datetime.combine(date.today(), next_start) - datetime.combine(date.today(), current_end)
+        ).total_seconds() <= 60:
+            consecutive.append(next_reservation)
+        else:
+            break
+    return consecutive
+
+
+def _reservation_form_back_url(request, form, *, is_multi_date=False, session_location_id=None, reservation=None):
+    """
+    予約フォームの「戻る」先。カレンダーで時間選択後は週間カレンダーへ戻す。
+    予約編集時は週間カレンダーの編集モードへ。
+    場所が特定できない場合のみトップへ。
+    """
+    weekly = reverse('reservations:reservation_weekly_calendar')
+    lid = request.GET.get('location')
+    if lid:
+        return f'{weekly}?location={lid}'
+    if is_multi_date and session_location_id is not None:
+        return f'{weekly}?location={session_location_id}'
+    if reservation is not None:
+        ws = reservation.date.isoformat()
+        return (
+            f'{weekly}?location={reservation.location_id}'
+            f'&week_start={ws}&edit_reservation={reservation.pk}'
+        )
+    if form is not None and getattr(form, 'data', None) and form.data.get('location'):
+        return f'{weekly}?location={form.data.get("location")}'
+    init_loc = (form.initial or {}).get('location') if form else None
+    if init_loc is not None:
+        pk = init_loc.pk if hasattr(init_loc, 'pk') else init_loc
+        return f'{weekly}?location={pk}'
+    return reverse('reservations:index')
+
 
 def custom_login(request):
     """カスタムログインビュー"""
@@ -327,7 +391,7 @@ def reservation_create(request):
                     'is_multi_date': True,
                     'customer_name': form.cleaned_data.get('customer_name'),
                     'customer_email': form.cleaned_data.get('customer_email'),
-                    'customer_phone': form.cleaned_data.get('customer_phone'),
+                    'customer_phone': '',
                     'notes': form.cleaned_data.get('notes', ''),
                 }
             else:
@@ -406,17 +470,97 @@ def reservation_create(request):
                 'is_multi_date': is_multi_date,
                 'multi_date_slots': multi_date_slots,
                 'multi_date_details': multi_date_details,
+                'reservation_form_back_url': _reservation_form_back_url(
+                    request, form, is_multi_date=is_multi_date, session_location_id=existing_data.get('location'),
+                ),
             })
     else:
         # GETリクエストの場合：URLパラメータからlocationとdateを取得
+        session_key_rd = 'reservation_data'
+        existing_data_pre = request.session.get(session_key_rd, {})
         location_id = request.GET.get('location')
         date_str = request.GET.get('date')
         time_slots_str = request.GET.get('time_slots')  # 週間カレンダーから選択された時間枠（旧形式）
         multi_date_slots_str = request.GET.get('multi_date_slots')  # 複数日の予約データ（新形式）
+        edit_pk = request.GET.get('edit_reservation')
+        use_weekly_false = request.GET.get('use_weekly') == 'false'
+
+        has_calendar_selection = bool(multi_date_slots_str) or (
+            bool(location_id) and bool(date_str) and bool(time_slots_str)
+        )
+        has_session_multi = bool(
+            existing_data_pre.get('is_multi_date') and existing_data_pre.get('multi_date_slots')
+        )
+        # 確認画面から「戻る」した単一日予約など（セッションに location あり）
+        has_session_reservation = bool(
+            existing_data_pre.get('location') or existing_data_pre.get('is_multi_date')
+        )
+
+        # 週間カレンダーからの予約編集（単一日・連続枠）
+        if edit_pk and location_id and date_str and time_slots_str and not multi_date_slots_str:
+            if not request.user.is_authenticated:
+                return redirect(f"{reverse('reservations:custom_login')}?next={request.get_full_path()}")
+            reservation = get_object_or_404(Reservation, pk=edit_pk)
+            is_owner = (
+                request.user.is_superuser
+                or reservation.created_by_id == request.user.id
+                or reservation.customer_email == request.user.email
+            )
+            if not is_owner:
+                messages.error(request, 'この予約を編集する権限がありません。')
+                return redirect('reservations:reservation_detail', pk=reservation.pk)
+            consecutive_reservations = _consecutive_reservations_group(reservation)
+            initial_data = {
+                'location': reservation.location,
+                'date': reservation.date,
+                'customer_name': reservation.customer_name,
+                'customer_email': reservation.customer_email,
+                'notes': reservation.notes,
+            }
+            form = ReservationForm(initial=initial_data, user=request.user, instance=reservation)
+            try:
+                tids = [int(x.strip()) for x in time_slots_str.split(',') if x.strip()]
+                form.fields['time_slots'].initial = list(TimeSlot.objects.filter(id__in=tids))
+            except (ValueError, TypeError):
+                tids = [r.time_slot.id for r in consecutive_reservations]
+                form.fields['time_slots'].initial = [r.time_slot for r in consecutive_reservations]
+            return render(request, 'reservations/reservation_form.html', {
+                'form': form,
+                'title': '予約編集',
+                'reservation': reservation,
+                'consecutive_reservations': consecutive_reservations,
+                'is_grouped': len(consecutive_reservations) > 1,
+                'initial_time_slot_ids': tids,
+                'reservation_form_back_url': _reservation_form_back_url(request, form, reservation=reservation),
+            })
+
+        # カレンダー経由でないアクセスは週間カレンダーへ（確認画面の戻る・セッション保持時は除外）
+        if (
+            not use_weekly_false
+            and not has_calendar_selection
+            and not has_session_multi
+            and not has_session_reservation
+        ):
+            first = Location.objects.filter(is_active=True).order_by('name').first()
+            if first:
+                target_lid = location_id or first.id
+                week_anchor = date.today().isoformat()
+                if date_str:
+                    try:
+                        week_anchor = datetime.fromisoformat(date_str).date().isoformat()
+                    except ValueError:
+                        pass
+                return redirect(
+                    f"{reverse('reservations:reservation_weekly_calendar')}"
+                    f"?location={target_lid}&week_start={week_anchor}"
+                )
+            messages.warning(request, '予約可能な場所がありません。')
+            return redirect('reservations:index')
+
         initial_data = {}
         initial_time_slot_ids = []
         multi_date_slots_data = None
-        
+
         if location_id:
             try:
                 location = Location.objects.get(id=location_id, is_active=True)
@@ -519,6 +663,9 @@ def reservation_create(request):
         'is_multi_date': is_multi_date,
         'multi_date_slots': multi_date_slots,
         'multi_date_details': multi_date_details,
+        'reservation_form_back_url': _reservation_form_back_url(
+            request, form, is_multi_date=is_multi_date, session_location_id=existing_data.get('location'),
+        ),
     })
 
 def reservation_confirm(request):
@@ -728,7 +875,7 @@ def reservation_confirm_submit(request):
                         date=reservation_date,
                         customer_name=reservation_data.get('customer_name'),
                         customer_email=reservation_data.get('customer_email'),
-                        customer_phone=reservation_data.get('customer_phone'),
+                        customer_phone=reservation_data.get('customer_phone') or '',
                         notes=reservation_data.get('notes', ''),
                         status='pending' if total_amount > 0 and SQUARE_AVAILABLE else 'confirmed',
                         created_by=request.user if request.user.is_authenticated else None
@@ -844,7 +991,7 @@ def reservation_confirm_submit(request):
                         existing.date = reservation_date
                         existing.customer_name = reservation_data.get('customer_name')
                         existing.customer_email = reservation_data.get('customer_email')
-                        existing.customer_phone = reservation_data.get('customer_phone')
+                        existing.customer_phone = reservation_data.get('customer_phone') or ''
                         existing.notes = reservation_data.get('notes', '')
                         existing.status = 'pending'  # 決済待ち状態
                         existing.save()
@@ -867,7 +1014,7 @@ def reservation_confirm_submit(request):
                             date=reservation_date,
                             customer_name=reservation_data.get('customer_name'),
                             customer_email=reservation_data.get('customer_email'),
-                            customer_phone=reservation_data.get('customer_phone'),
+                            customer_phone=reservation_data.get('customer_phone') or '',
                             notes=reservation_data.get('notes', ''),
                             status='pending',  # 決済待ち状態
                             created_by=request.user
@@ -900,7 +1047,7 @@ def reservation_confirm_submit(request):
                         date=reservation_date,
                         customer_name=reservation_data.get('customer_name'),
                         customer_email=reservation_data.get('customer_email'),
-                        customer_phone=reservation_data.get('customer_phone'),
+                        customer_phone=reservation_data.get('customer_phone') or '',
                         notes=reservation_data.get('notes', ''),
                         status='pending',  # 決済待ち状態
                         created_by=request.user if request.user.is_authenticated else None
@@ -1001,7 +1148,7 @@ def reservation_confirm_submit(request):
                     existing.date = reservation_date
                     existing.customer_name = reservation_data.get('customer_name')
                     existing.customer_email = reservation_data.get('customer_email')
-                    existing.customer_phone = reservation_data.get('customer_phone')
+                    existing.customer_phone = reservation_data.get('customer_phone') or ''
                     existing.notes = reservation_data.get('notes', '')
                     existing.save()
                     updated_reservations.append(existing)
@@ -1025,7 +1172,7 @@ def reservation_confirm_submit(request):
                         date=reservation_date,
                         customer_name=reservation_data.get('customer_name'),
                         customer_email=reservation_data.get('customer_email'),
-                        customer_phone=reservation_data.get('customer_phone'),
+                        customer_phone=reservation_data.get('customer_phone') or '',
                         notes=reservation_data.get('notes', ''),
                         status='pending',
                         created_by=request.user
@@ -1156,7 +1303,7 @@ def reservation_confirm_submit(request):
                     date=reservation_date,
                     customer_name=reservation_data.get('customer_name'),
                     customer_email=reservation_data.get('customer_email'),
-                    customer_phone=reservation_data.get('customer_phone'),
+                    customer_phone=reservation_data.get('customer_phone') or '',
                     notes=reservation_data.get('notes', ''),
                     status='pending',
                     created_by=request.user if request.user.is_authenticated else None
@@ -1356,22 +1503,24 @@ def reservation_edit(request, pk):
             # セッションに編集データを保存して確認画面に遷移
             session_key = 'reservation_data'
             cleaned_data = form.cleaned_data.copy()
-            
+            # フォームに電話番号欄がないため、既存予約の値を維持する
+            cleaned_data['customer_phone'] = reservation.customer_phone or ''
+
             # locationオブジェクトをIDに変換
             if 'location' in cleaned_data and cleaned_data['location']:
                 cleaned_data['location'] = cleaned_data['location'].id
-            
+
             # dateを文字列に変換
             if 'date' in cleaned_data and cleaned_data['date']:
                 cleaned_data['date'] = cleaned_data['date'].isoformat()
-            
+
             # 時間枠IDを保存
             selected_time_slots = cleaned_data.get('time_slots', [])
             cleaned_data['time_slot_ids'] = [ts.id for ts in selected_time_slots]
             # time_slotsオブジェクトはセッションに保存できないので削除
             if 'time_slots' in cleaned_data:
                 del cleaned_data['time_slots']
-            
+
             # 編集フラグと既存予約IDを保存
             cleaned_data['is_edit'] = True
             cleaned_data['edit_reservation_ids'] = [r.id for r in consecutive_reservations]
@@ -1393,7 +1542,6 @@ def reservation_edit(request, pk):
             'date': reservation.date,
             'customer_name': reservation.customer_name,
             'customer_email': reservation.customer_email,
-            'customer_phone': reservation.customer_phone,
             'notes': reservation.notes,
         }
         form = ReservationForm(initial=initial_data, user=request.user, instance=reservation)
@@ -1406,7 +1554,8 @@ def reservation_edit(request, pk):
         'reservation': reservation,
         'consecutive_reservations': consecutive_reservations,
         'is_grouped': len(consecutive_reservations) > 1,
-        'initial_time_slot_ids': [r.time_slot.id for r in consecutive_reservations]
+        'initial_time_slot_ids': [r.time_slot.id for r in consecutive_reservations],
+        'reservation_form_back_url': _reservation_form_back_url(request, form, reservation=reservation),
     })
 
 @login_required
@@ -1613,16 +1762,18 @@ def check_availability(request):
 def reservation_weekly_calendar(request):
     """週間カレンダーで予約を選択する画面"""
     location_id = request.GET.get('location')
-    
+    first_location = Location.objects.filter(is_active=True).order_by('name').first()
     if not location_id:
-        messages.warning(request, '場所を選択してください。')
-        return redirect('reservations:reservation_create')
-    
+        if first_location:
+            return redirect(f"{reverse('reservations:reservation_weekly_calendar')}?location={first_location.id}")
+        messages.warning(request, '予約可能な場所がありません。')
+        return redirect('reservations:index')
+
     try:
         location = Location.objects.get(id=location_id, is_active=True)
     except Location.DoesNotExist:
         messages.error(request, '指定された場所が見つかりません。')
-        return redirect('reservations:reservation_create')
+        return redirect('reservations:index')
     
     # 週の開始日を取得（デフォルトは今日、またはURLパラメータから）
     week_start_str = request.GET.get('week_start')
@@ -1637,28 +1788,76 @@ def reservation_weekly_calendar(request):
     # 週の開始日を月曜日に調整（または指定された日から7日間）
     # 画像を見ると土曜日から始まっているので、選択された日から7日間を表示
     week_dates = [week_start + timedelta(days=i) for i in range(7)]
-    
+
+    edit_pk = request.GET.get('edit_reservation')
+    edit_reservation_obj = None
+    edit_mode = False
+    initial_slots_json = '{}'
+    if edit_pk and request.user.is_authenticated:
+        try:
+            edit_reservation_obj = Reservation.objects.select_related('location', 'time_slot').get(pk=edit_pk)
+        except Reservation.DoesNotExist:
+            edit_reservation_obj = None
+        if edit_reservation_obj:
+            is_owner = (
+                request.user.is_superuser
+                or edit_reservation_obj.created_by_id == request.user.id
+                or edit_reservation_obj.customer_email == request.user.email
+            )
+            if is_owner and edit_reservation_obj.location_id == location.id:
+                edit_mode = True
+                # 同一日・同一場所の「自分の予約」をすべて初期選択（連続枠に限らない）
+                if request.user.is_superuser:
+                    my_same_day = Reservation.objects.filter(
+                        location=edit_reservation_obj.location,
+                        date=edit_reservation_obj.date,
+                        status__in=['confirmed', 'pending'],
+                        customer_email=edit_reservation_obj.customer_email,
+                    )
+                else:
+                    my_same_day = Reservation.objects.filter(
+                        location=edit_reservation_obj.location,
+                        date=edit_reservation_obj.date,
+                        status__in=['confirmed', 'pending'],
+                    ).filter(
+                        Q(created_by=request.user) | Q(customer_email=request.user.email)
+                    )
+                by_date = {}
+                for r in my_same_day:
+                    ds = str(r.date)
+                    by_date.setdefault(ds, []).append(r.time_slot_id)
+                initial_slots_json = json.dumps(by_date)
+            elif is_owner and edit_reservation_obj.location_id != location.id:
+                return redirect(
+                    f"{reverse('reservations:reservation_weekly_calendar')}"
+                    f"?location={edit_reservation_obj.location_id}"
+                    f"&week_start={week_start.isoformat()}&edit_reservation={edit_pk}"
+                )
+            elif not is_owner:
+                messages.error(request, 'この予約を編集する権限がありません。')
+                edit_reservation_obj = None
+
     # すべての時間枠を取得
     all_time_slots = TimeSlot.objects.filter(is_active=True).order_by('start_time')
-    
+
     # 週間の予約状況を取得
     week_reservations = Reservation.objects.filter(
         location=location,
         date__in=week_dates,
-        status__in=['confirmed', 'pending']
+        status__in=['confirmed', 'pending'],
     ).select_related('time_slot', 'created_by')
-    
+
     # 日付と時間枠ごとの予約状況を整理（テンプレートでアクセスしやすい形式）
     availability_data = []
     for slot in all_time_slots:
         slot_data = {
             'slot': slot,
-            'dates': []
+            'dates': [],
         }
         # 予約可能期間の計算（一般ユーザーは1ヶ月、特別ユーザーは3ヶ月）
         today = date.today()
         max_days = 30  # デフォルトは1ヶ月
-        
+
         if request.user.is_authenticated:
             try:
                 profile = MemberProfile.objects.get(user=request.user)
@@ -1666,26 +1865,50 @@ def reservation_weekly_calendar(request):
                     max_days = 90  # 特別ユーザーは3ヶ月
             except MemberProfile.DoesNotExist:
                 pass
-        
+
         max_date = today + timedelta(days=max_days)
-        
+
         for d in week_dates:
-            # その日のその時間枠の予約を取得
             reservations = week_reservations.filter(date=d, time_slot=slot)
-            
-            # 週間カレンダーでは、ログインユーザーに依存せず予約状況のみを反映
-            # 予約があれば予約済み（利用不可）、なければ利用可能
-            has_reservation = reservations.exists()
-            
-            # 予約可能期間外かどうかをチェック
+            reservation_here = reservations.first()
+
+            is_mine = False
+            is_other = False
+            if reservation_here:
+                if request.user.is_authenticated:
+                    if edit_mode and edit_reservation_obj:
+                        if request.user.is_superuser:
+                            is_mine = (
+                                reservation_here.customer_email == edit_reservation_obj.customer_email
+                            )
+                        else:
+                            is_mine = (
+                                reservation_here.created_by_id == request.user.id
+                                or reservation_here.customer_email == request.user.email
+                            )
+                    else:
+                        is_mine = (
+                            reservation_here.created_by_id == request.user.id
+                            or reservation_here.customer_email == request.user.email
+                        )
+                if reservation_here and not is_mine:
+                    is_other = True
+
             is_out_of_range = d < today or d > max_date
-            
+            is_booked_by_others = is_other
+            is_my_reservation = is_mine
+            is_available = reservation_here is None and not is_out_of_range
+            reservation_pk = (
+                reservation_here.pk if reservation_here and is_my_reservation else None
+            )
+
             slot_data['dates'].append({
                 'date': d,
-                'is_available': not has_reservation and not is_out_of_range,
-                'is_my_reservation': False,  # 週間カレンダーでは区別しない
-                'is_booked_by_others': has_reservation,
-                'is_out_of_range': is_out_of_range
+                'is_available': is_available,
+                'is_my_reservation': is_my_reservation,
+                'is_booked_by_others': is_booked_by_others,
+                'is_out_of_range': is_out_of_range,
+                'reservation_pk': reservation_pk,
             })
         availability_data.append(slot_data)
     
@@ -1705,7 +1928,16 @@ def reservation_weekly_calendar(request):
             pass
     
     max_date = today + timedelta(days=max_days)
-    
+
+    edit_initial_slot_count = 0
+    if edit_mode and initial_slots_json and initial_slots_json != '{}':
+        try:
+            _slot_data = json.loads(initial_slots_json)
+            for _ids in _slot_data.values():
+                edit_initial_slot_count += len(_ids)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
     context = {
         'location': location,
         'locations': all_locations,
@@ -1717,9 +1949,54 @@ def reservation_weekly_calendar(request):
         'next_week': week_start + timedelta(days=7),
         'max_date': max_date,
         'today': today,
+        'edit_mode': edit_mode,
+        'initial_slots_json': initial_slots_json,
+        'edit_reservation_pk': edit_reservation_obj.pk if edit_reservation_obj and edit_mode else None,
+        'edit_initial_slot_count': edit_initial_slot_count,
     }
-    
+
     return render(request, 'reservations/reservation_weekly_calendar.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def reservation_weekly_calendar_delete_all(request):
+    """週間カレンダー編集: 同一日・同一場所の対象予約（自分分）をすべて削除"""
+    edit_pk = request.POST.get('edit_reservation')
+    if not edit_pk:
+        messages.error(request, '不正なリクエストです。')
+        return redirect('reservations:reservation_weekly_calendar')
+
+    reservation = get_object_or_404(Reservation, pk=edit_pk)
+    is_owner = (
+        request.user.is_superuser
+        or reservation.created_by_id == request.user.id
+        or reservation.customer_email == request.user.email
+    )
+    if not is_owner:
+        messages.error(request, 'この予約を削除する権限がありません。')
+        return redirect('reservations:reservation_detail', pk=reservation.pk)
+
+    if request.user.is_superuser:
+        qs = Reservation.objects.filter(
+            location=reservation.location,
+            date=reservation.date,
+            status__in=['confirmed', 'pending'],
+            customer_email=reservation.customer_email,
+        )
+    else:
+        qs = Reservation.objects.filter(
+            location=reservation.location,
+            date=reservation.date,
+            status__in=['confirmed', 'pending'],
+        ).filter(
+            Q(created_by=request.user) | Q(customer_email=request.user.email)
+        )
+
+    count = qs.count()
+    qs.delete()
+    messages.success(request, f'予約を{count}件削除しました。')
+    return redirect('reservations:reservation_list')
 
 def check_weekly_availability(request):
     """週間の空き状況をチェック（AJAX）"""
@@ -2034,6 +2311,107 @@ def user_edit(request, pk):
     })
 
 
+def get_default_regular_member_plan():
+    """
+    簡易登録などで用いる「通常会員」相当のプラン。
+    管理画面で is_default=True のプランを優先し、なければ名前に「通常」を含む有効プラン、
+    それもなければ最も安い有効プランを返す。
+    """
+    plan = Plan.objects.filter(is_default=True, is_active=True).first()
+    if plan:
+        return plan
+    plan = Plan.objects.filter(is_active=True, name__icontains='通常').first()
+    if plan:
+        return plan
+    return Plan.objects.filter(is_active=True).order_by('price').first()
+
+
+def member_registration_simple(request):
+    """会員登録（簡易）: 氏名・メール・パスワードのみ。プランはデフォルト通常会員。"""
+    if request.user.is_authenticated:
+        return redirect('reservations:index')
+
+    if request.method == 'POST':
+        form = MemberRegistrationSimpleForm(request.POST)
+        if form.is_valid():
+            plan = get_default_regular_member_plan()
+            if not plan:
+                messages.error(
+                    request,
+                    '利用可能な会員プランが設定されていません。管理者にお問い合わせください。',
+                )
+                return render(request, 'reservations/member_registration_simple.html', {'form': form})
+
+            try:
+                user = User.objects.create_user(
+                    username=form.cleaned_data['email'],
+                    email=form.cleaned_data['email'],
+                    password=form.cleaned_data['password'],
+                )
+                profile = MemberProfile.objects.create(
+                    user=user,
+                    full_name=form.cleaned_data['full_name'],
+                    gender='other',
+                    phone='',
+                    postal_code='',
+                    address='',
+                    plan=plan,
+                )
+
+                if plan.price > 0:
+                    request.session['pending_registration_user_id'] = user.id
+                    result = create_payment_link(
+                        request,
+                        amount=plan.price,
+                        order_id=f'member_registration_{user.id}',
+                        description=f'会員登録料金 - {plan.name}',
+                    )
+                    if result['success']:
+                        PaymentTransaction.objects.create(
+                            member_profile=profile,
+                            payment_link_id=result['payment_link_id'],
+                            payment_link_url=result['payment_link_url'],
+                            square_order_id=result.get('order_id'),
+                            amount=plan.price,
+                            status='pending',
+                        )
+                        return redirect(result['payment_link_url'])
+                    messages.error(
+                        request,
+                        f'決済リンクの作成に失敗しました: {", ".join(result["errors"])}',
+                    )
+                    profile.delete()
+                    user.delete()
+                    return render(request, 'reservations/member_registration_simple.html', {'form': form})
+
+                login(request, user)
+                try:
+                    subject = '会員登録が完了しました'
+                    message = render_to_string('reservations/emails/registration_complete.html', {
+                        'user': user,
+                        'profile': profile,
+                        'site_url': request.build_absolute_uri('/'),
+                    })
+                    send_mail(
+                        subject,
+                        '',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [user.email],
+                        html_message=message,
+                        fail_silently=False,
+                    )
+                except Exception as e:
+                    print(f'メール送信エラー: {e}')
+                messages.success(request, '会員登録が完了しました。')
+                return redirect('reservations:index')
+            except Exception as e:
+                messages.error(request, f'会員登録中にエラーが発生しました: {str(e)}')
+    else:
+        form = MemberRegistrationSimpleForm()
+
+    return render(request, 'reservations/member_registration_simple.html', {'form': form})
+
+
 def member_registration(request):
     """会員登録ウィザード"""
     # セッションキー
@@ -2180,7 +2558,7 @@ def member_registration(request):
                         user=user,
                         full_name=step1_data['full_name'],
                         gender=step1_data['gender'],
-                        phone=step1_data['phone'],
+                        phone=step1_data.get('phone', ''),
                         postal_code=step1_data.get('postal_code', ''),
                         address=step1_data.get('address', ''),
                         plan=plan
@@ -2575,7 +2953,7 @@ def payment_complete(request):
                                     date=reservation_date,
                                     customer_name=reservation_data.get('customer_name'),
                                     customer_email=reservation_data.get('customer_email'),
-                                    customer_phone=reservation_data.get('customer_phone'),
+                                    customer_phone=reservation_data.get('customer_phone') or '',
                                     notes=reservation_data.get('notes', ''),
                                     status='confirmed',
                                     created_by=request.user if request.user.is_authenticated else None

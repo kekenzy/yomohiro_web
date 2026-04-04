@@ -31,13 +31,12 @@ class ReservationForm(forms.ModelForm):
     
     class Meta:
         model = Reservation
-        fields = ['location', 'date', 'customer_name', 'customer_email', 'customer_phone', 'notes']
+        fields = ['location', 'date', 'customer_name', 'customer_email', 'notes']
         widgets = {
             'location': forms.Select(attrs={'class': 'form-select'}),
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'customer_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'お客様名を入力してください'}),
             'customer_email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'example@email.com'}),
-            'customer_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '例: 090-1234-5678'}),
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': '備考があれば入力してください'}),
         }
 
@@ -61,7 +60,6 @@ class ReservationForm(forms.ModelForm):
                 profile = MemberProfile.objects.get(user=self.user)
                 self.fields['customer_name'].initial = profile.full_name
                 self.fields['customer_email'].initial = self.user.email
-                self.fields['customer_phone'].initial = profile.phone
             except MemberProfile.DoesNotExist:
                 # MemberProfileが存在しない場合は、Userの情報を使用
                 self.fields['customer_name'].initial = self.user.get_full_name() or self.user.username
@@ -95,8 +93,6 @@ class ReservationForm(forms.ModelForm):
                 raise ValidationError('お客様名を入力してください。')
             if not cleaned_data.get('customer_email'):
                 raise ValidationError('メールアドレスを入力してください。')
-            if not cleaned_data.get('customer_phone'):
-                raise ValidationError('電話番号を入力してください。')
             return cleaned_data
         
         # 単一日の予約の場合の既存のバリデーション
@@ -113,8 +109,6 @@ class ReservationForm(forms.ModelForm):
             raise ValidationError('お客様名を入力してください。')
         if not cleaned_data.get('customer_email'):
             raise ValidationError('メールアドレスを入力してください。')
-        if not cleaned_data.get('customer_phone'):
-            raise ValidationError('電話番号を入力してください。')
 
         # 時間枠のチェック
         # 編集モード（self.instanceが存在する）の場合、時間枠は必須
@@ -291,10 +285,10 @@ class MemberRegistrationStep1Form(forms.Form):
     phone = forms.CharField(
         max_length=15,
         label='電話番号',
-        required=True,
+        required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '例: 090-1234-5678'
+            'placeholder': '例: 090-1234-5678（任意）'
         })
     )
     postal_code = forms.CharField(
@@ -314,6 +308,61 @@ class MemberRegistrationStep1Form(forms.Form):
             'rows': 2,
             'placeholder': '住所を入力してください'
         })
+    )
+
+    def clean_password_confirm(self):
+        password = self.cleaned_data.get('password')
+        password_confirm = self.cleaned_data.get('password_confirm')
+        if password and password_confirm and password != password_confirm:
+            raise forms.ValidationError('パスワードが一致しません。')
+        return password_confirm
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and User.objects.filter(email=email).exists():
+            raise forms.ValidationError('このメールアドレスは既に登録されています。')
+        return email
+
+    def clean_phone(self):
+        phone = (self.cleaned_data.get('phone') or '').strip()
+        return phone
+
+
+class MemberRegistrationSimpleForm(forms.Form):
+    """会員登録（簡易）: 氏名・メール・パスワードのみ。プランはサーバー側でデフォルトを付与。"""
+    full_name = forms.CharField(
+        max_length=100,
+        label='氏名',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '氏名を入力してください',
+        }),
+    )
+    email = forms.EmailField(
+        label='メールアドレス',
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'example@email.com',
+        }),
+    )
+    password = forms.CharField(
+        label='パスワード',
+        required=True,
+        min_length=8,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': '英数字8文字以上',
+        }),
+    )
+    password_confirm = forms.CharField(
+        label='パスワード（確認）',
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'パスワードを再入力してください',
+        }),
     )
 
     def clean_password_confirm(self):

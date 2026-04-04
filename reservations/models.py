@@ -53,14 +53,16 @@ class Reservation(models.Model):
     customer_name = models.CharField(max_length=100, verbose_name='お客様名')
     customer_email = models.EmailField(verbose_name='メールアドレス')
     customer_phone = models.CharField(
-        max_length=15, 
+        max_length=15,
+        blank=True,
+        default='',
         verbose_name='電話番号',
         validators=[
             RegexValidator(
-                regex=r'^[\d\-\(\)\s]+$',
-                message='電話番号は数字、ハイフン、括弧、スペースのみ使用可能です'
+                regex=r'^$|^[\d\-\(\)\s]+$',
+                message='電話番号は数字、ハイフン、括弧、スペースのみ使用可能です',
             )
-        ]
+        ],
     )
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='ステータス')
@@ -124,13 +126,15 @@ class MemberProfile(models.Model):
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, verbose_name='性別')
     phone = models.CharField(
         max_length=15,
+        blank=True,
+        default='',
         verbose_name='電話番号',
         validators=[
             RegexValidator(
-                regex=r'^[\d\-\(\)\s]+$',
-                message='電話番号は数字、ハイフン、括弧、スペースのみ使用可能です'
+                regex=r'^$|^[\d\-\(\)\s]+$',
+                message='電話番号は数字、ハイフン、括弧、スペースのみ使用可能です',
             )
-        ]
+        ],
     )
     postal_code = models.CharField(max_length=10, blank=True, verbose_name='郵便番号')
     address = models.TextField(blank=True, verbose_name='住所')

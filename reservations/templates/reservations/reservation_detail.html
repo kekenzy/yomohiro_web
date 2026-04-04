@@ -107,10 +107,12 @@
                                 <th>メール:</th>
                                 <td>{{ reservation.customer_email }}</td>
                             </tr>
+                            {% if reservation.customer_phone %}
                             <tr>
                                 <th>電話番号:</th>
                                 <td>{{ reservation.customer_phone }}</td>
                             </tr>
+                            {% endif %}
                         </table>
                     </div>
                 </div>
@@ -159,7 +161,7 @@
                         <i class="fas fa-list"></i> 予約一覧
                     </a>
                     {% if user.is_authenticated %}
-                        <a href="{% url 'reservations:reservation_edit' reservation.pk %}" class="btn btn-warning me-md-2">
+                        <a href="{% url 'reservations:reservation_weekly_calendar' %}?location={{ reservation.location.id }}&week_start={{ reservation.date|date:'Y-m-d' }}&edit_reservation={{ reservation.pk }}" class="btn btn-warning me-md-2">
                             <i class="fas fa-edit"></i> 予約編集
                         </a>
                         {% if is_grouped %}

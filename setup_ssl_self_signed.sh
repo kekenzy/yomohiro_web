@@ -15,8 +15,8 @@ echo "📜 自己署名証明書を生成中..."
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/nginx/ssl/yomohiro_key.pem \
     -out /etc/nginx/ssl/yomohiro_cert.pem \
-    -subj "/C=JP/ST=Fukuoka/L=Fukuoka/O=Yomohiro/CN=18.183.107.163" \
-    -addext "subjectAltName=IP:18.183.107.163"
+    -subj "/C=JP/ST=Fukuoka/L=Fukuoka/O=Yomohiro/CN=54.64.209.76" \
+    -addext "subjectAltName=IP:54.64.209.76"
 
 # 証明書のパーミッションを設定
 sudo chmod 600 /etc/nginx/ssl/yomohiro_key.pem
@@ -29,7 +29,7 @@ sudo tee /etc/nginx/sites-available/yomohiro_web > /dev/null << 'EOF'
 server {
     listen 80;
     listen [::]:80;
-    server_name 18.183.107.163 _;
+    server_name 54.64.209.76 _;
     
     # HTTPSにリダイレクト
     return 301 https://$host$request_uri;
@@ -39,7 +39,7 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name 18.183.107.163 _;
+    server_name 54.64.209.76 _;
 
     # SSL証明書（自己署名）
     ssl_certificate /etc/nginx/ssl/yomohiro_cert.pem;
@@ -116,8 +116,8 @@ echo "⚙️  .envファイルを更新中..."
 cd /home/ubuntu/yomohiro_web
 if [ -f .env ]; then
     # ALLOWED_HOSTSにIPアドレスを追加（既に含まれている場合はスキップ）
-    if ! grep -q "18.183.107.163" .env; then
-        sed -i "s|ALLOWED_HOSTS=.*|ALLOWED_HOSTS=18.183.107.163,localhost,127.0.0.1|" .env
+    if ! grep -q "54.64.209.76" .env; then
+        sed -i "s|ALLOWED_HOSTS=.*|ALLOWED_HOSTS=54.64.209.76,localhost,127.0.0.1|" .env
     fi
     
     # SSL設定を有効化
@@ -140,6 +140,6 @@ echo ""
 echo "⚠️  注意: 自己署名証明書のため、ブラウザで警告が表示されます"
 echo "   本番環境ではLet's Encryptの証明書を使用してください"
 echo ""
-echo "🌐 HTTPS URL: https://18.183.107.163"
+echo "🌐 HTTPS URL: https://54.64.209.76"
 echo "   HTTPアクセスは自動的にHTTPSにリダイレクトされます"
 

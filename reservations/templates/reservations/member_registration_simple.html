@@ -1,0 +1,72 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}簡易会員登録 - 予約システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .required-mark { color: #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-user-plus"></i> 簡易会員登録
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-4">
+                    氏名・メールアドレス・パスワードのみで登録できます。会員プランは<strong>通常会員（デフォルトプラン）</strong>として登録されます。
+                    電話番号や顔写真などは、登録後にプロフィールから追加できます。
+                </p>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{% if field != '__all__' %}{{ field }}: {% endif %}{{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'reservations:member_registration_simple' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.full_name.id_for_label }}" class="form-label">氏名 <span class="required-mark">★</span></label>
+                        {{ form.full_name }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">メールアドレス <span class="required-mark">★</span></label>
+                        {{ form.email }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.password.id_for_label }}" class="form-label">パスワード <span class="required-mark">★</span></label>
+                        {{ form.password }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.password_confirm.id_for_label }}" class="form-label">パスワード（確認） <span class="required-mark">★</span></label>
+                        {{ form.password_confirm }}
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            <i class="fas fa-check"></i> 登録する
+                        </button>
+                    </div>
+                </form>
+
+                <hr class="my-4">
+                <p class="mb-0 text-center small">
+                    プラン選択・顔写真・お支払い方法まで含む本登録は
+                    <a href="{% url 'reservations:member_registration' %}">通常の会員登録</a>をご利用ください。
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
