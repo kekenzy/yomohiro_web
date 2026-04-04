@@ -62,7 +62,7 @@ INSTALLED_APPS = [
 SITE_ID = 1
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
+    'reservation_system.security_middleware.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # 静的ファイル配信用
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -206,6 +206,12 @@ if not DEBUG:
 # Security settings for production
 if not DEBUG:
     SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+    # 静的 IP 直では証明書が無いため HTTP のまま許可（ドメイン + Let's Encrypt 後は https のみで十分）
+    SECURE_SSL_REDIRECT_EXEMPT_HOSTS = config(
+        'SECURE_SSL_REDIRECT_EXEMPT_HOSTS',
+        default='54.178.68.240,127.0.0.1,localhost',
+        cast=lambda v: [s.strip() for s in v.split(',') if s.strip()],
+    )
     SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=True, cast=bool)
     CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=True, cast=bool)
     SECURE_BROWSER_XSS_FILTER = True
@@ -214,6 +220,7 @@ if not DEBUG:
 else:
     # 開発環境での警告を抑制
     SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+    SECURE_SSL_REDIRECT_EXEMPT_HOSTS = ()
 
 # Email settings
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
