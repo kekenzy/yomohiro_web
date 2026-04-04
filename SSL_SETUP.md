@@ -1,5 +1,7 @@
 # Let's Encrypt SSL証明書設定ガイド
 
+本番の HTTPS 関連の環境変数（`SECURE_SSL_REDIRECT` 等）は [PRODUCTION.md](PRODUCTION.md) に記載しています。ドキュメント全体の索引は [DOCUMENTATION.md](DOCUMENTATION.md) です。
+
 ## 📋 前提条件
 
 Let's EncryptでSSL証明書を取得するには、**ドメイン名が必要**です。

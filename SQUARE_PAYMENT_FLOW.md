@@ -1,5 +1,7 @@
 # Square API決済機能 実装フロー
 
+> 索引: [DOCUMENTATION.md](DOCUMENTATION.md) ／ 本番の環境変数一覧: [PRODUCTION.md](PRODUCTION.md)
+
 ## 概要
 
 DjangoアプリケーションにSquare APIを統合し、会員登録時の決済処理を実装しました。

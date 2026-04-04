@@ -1,11 +1,13 @@
 # Django Admin ログイン情報
 
+> 索引: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## デフォルト管理者アカウント
 
 ### 管理者アカウント
 
 - **ユーザー名:** `admin`
-- **パスワード:** `admin123`
+- **パスワード:** `Kekenji1`
 - **メールアドレス:** `admin@example.com`
 
 ### アクセス情報

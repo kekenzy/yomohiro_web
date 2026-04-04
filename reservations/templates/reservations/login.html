@@ -23,6 +23,9 @@
                 
                 <form method="post">
                     {% csrf_token %}
+                    {% if next %}
+                    <input type="hidden" name="next" value="{{ next }}">
+                    {% endif %}
                     <div class="mb-3">
                         <label for="id_username" class="form-label">
                             <i class="fas fa-user text-warning"></i> ユーザー名(メールアドレス)
@@ -41,6 +44,15 @@
                         </button>
                     </div>
                 </form>
+
+                {% if line_login_enabled %}
+                <p class="text-center text-muted small my-4 mb-2">または</p>
+                <div class="d-grid">
+                    <a href="{% url 'line_login' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="btn btn-success btn-lg" style="background-color:#06C755;border-color:#06C755;">
+                        <i class="fab fa-line"></i> LINEでログイン
+                    </a>
+                </div>
+                {% endif %}
                 
                 <div class="text-center mt-3">
                     <a href="{% url 'reservations:index' %}" class="text-warning">

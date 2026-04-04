@@ -5,7 +5,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
@@ -14,11 +15,13 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
 from datetime import date, datetime, timedelta
+import io
 import json
 import base64
 import hmac
 import hashlib
 from .models import Location, TimeSlot, Reservation, Plan, MemberProfile
+from .member_utils import get_default_regular_member_plan
 from .forms import (
     ReservationForm, ReservationSearchForm, LocationForm, TimeSlotForm, PlanForm,
     MemberRegistrationStep1Form, MemberRegistrationStep2Form,
@@ -99,11 +102,20 @@ def custom_login(request):
         if user is not None:
             login(request, user)
             messages.success(request, 'ログインしました。')
+            next_url = request.POST.get('next') or request.GET.get('next')
+            if next_url and url_has_allowed_host_and_scheme(
+                next_url,
+                allowed_hosts={request.get_host()},
+                require_https=request.is_secure(),
+            ):
+                return redirect(next_url)
             return redirect('reservations:index')
         else:
             messages.error(request, 'ユーザー名またはパスワードが正しくありません。')
-    
-    return render(request, 'reservations/login.html')
+
+    return render(request, 'reservations/login.html', {
+        'next': request.GET.get('next', ''),
+    })
 
 def index(request):
     """予約システムのトップページ"""
@@ -2311,21 +2323,6 @@ def user_edit(request, pk):
     })
 
 
-def get_default_regular_member_plan():
-    """
-    簡易登録などで用いる「通常会員」相当のプラン。
-    管理画面で is_default=True のプランを優先し、なければ名前に「通常」を含む有効プラン、
-    それもなければ最も安い有効プランを返す。
-    """
-    plan = Plan.objects.filter(is_default=True, is_active=True).first()
-    if plan:
-        return plan
-    plan = Plan.objects.filter(is_active=True, name__icontains='通常').first()
-    if plan:
-        return plan
-    return Plan.objects.filter(is_active=True).order_by('price').first()
-
-
 def member_registration_simple(request):
     """会員登録（簡易）: 氏名・メール・パスワードのみ。プランはデフォルト通常会員。"""
     if request.user.is_authenticated:
@@ -2685,10 +2682,50 @@ def user_profile(request):
         profile = MemberProfile.objects.get(user=request.user)
     except MemberProfile.DoesNotExist:
         profile = None
-    
+
     return render(request, 'reservations/user_profile.html', {
-        'profile': profile
+        'profile': profile,
     })
+
+
+@login_required
+def member_qr_page(request):
+    """会員QRコードのみ表示"""
+    try:
+        profile = MemberProfile.objects.get(user=request.user)
+    except MemberProfile.DoesNotExist:
+        messages.info(request, '会員プロフィールがないため、会員QRコードを表示できません。')
+        return redirect('reservations:user_profile')
+
+    return render(request, 'reservations/member_qr.html', {
+        'profile': profile,
+    })
+
+
+@login_required
+def member_qr_image(request):
+    """ログイン中ユーザーの会員QRコード（SVG）。PNG+Pillow 経由だと PIL 未導入環境で失敗するため SVG を返す。"""
+    profile = get_object_or_404(MemberProfile, user=request.user)
+    try:
+        import qrcode
+        import qrcode.image.svg
+    except ImportError:
+        return HttpResponse('QRライブラリが利用できません。', status=503, content_type='text/plain; charset=utf-8')
+
+    payload = f'YOMOHIRO_MEMBER:{profile.member_qr_token}'
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=6,
+        border=2,
+        image_factory=qrcode.image.svg.SvgPathImage,
+    )
+    qr.add_data(payload)
+    qr.make(fit=True)
+    img = qr.make_image()
+    buf = io.BytesIO()
+    img.save(buf)
+    return HttpResponse(buf.getvalue(), content_type='image/svg+xml; charset=utf-8')
 
 
 from .models import PaymentTransaction

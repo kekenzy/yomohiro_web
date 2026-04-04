@@ -2,6 +2,9 @@
 
 このドキュメントでは、GitHub ActionsとAWS Lightsailを使用した自動デプロイの設定手順を説明します。
 
+> **本番の環境変数・LINE / Square・migrate の一覧** は [PRODUCTION.md](PRODUCTION.md) を参照。  
+> **リポジトリ内の全 Markdown の索引** は [DOCUMENTATION.md](DOCUMENTATION.md) を参照。
+
 ## 📋 前提条件
 
 - AWSアカウント

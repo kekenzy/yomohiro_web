@@ -1,5 +1,7 @@
 # Square API環境変数設定ガイド
 
+> 索引: [DOCUMENTATION.md](DOCUMENTATION.md) ／ 本番の環境変数一覧: [PRODUCTION.md](PRODUCTION.md)
+
 ## SQUARE_ENVIRONMENT
 
 ### 設定値

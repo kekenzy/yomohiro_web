@@ -13,26 +13,20 @@
             </div>
             <div class="card-body">
                 {% if profile %}
-                    <div class="row mb-4">
-                        <div class="col-md-4 text-center">
-                            {% if profile.photo %}
-                                <img src="{{ profile.photo.url }}" alt="プロフィール写真" class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
-                            {% else %}
-                                <div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 200px; height: 200px; font-size: 4rem;">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-8">
-                            <h3>{{ profile.full_name }}</h3>
-                            <p class="text-muted">{{ user.email }}</p>
-                            {% if profile.plan %}
-                                <span class="badge bg-warning text-dark">{{ profile.plan.name }}</span>
-                            {% endif %}
+                    <h3 class="mb-3">{{ profile.full_name }}</h3>
+
+                    <div class="mb-3">
+                        <div class="d-inline-block p-2 bg-white border rounded">
+                            <img src="{% url 'reservations:member_qr_image' %}" alt="会員QRコード" class="img-fluid" style="max-width:200px;height:auto;">
                         </div>
                     </div>
 
-                    <hr>
+                    <p class="text-muted mb-2">{{ user.email }}</p>
+                    {% if profile.plan %}
+                        <p class="mb-0"><span class="badge bg-warning text-dark">{{ profile.plan.name }}</span></p>
+                    {% endif %}
+
+                    <hr class="my-4">
 
                     <h4 class="mb-3">基本情報</h4>
                     <table class="table table-bordered">
@@ -85,4 +79,3 @@
     </div>
 </div>
 {% endblock %}
-

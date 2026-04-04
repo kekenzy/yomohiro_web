@@ -48,7 +48,7 @@ class MemberProfileAdmin(admin.ModelAdmin):
     list_filter = ['gender', 'plan', 'created_at']
     search_fields = ['full_name', 'user__username', 'user__email', 'phone']
     ordering = ['-created_at']
-    readonly_fields = ['created_at', 'updated_at']
+    readonly_fields = ['member_qr_token', 'created_at', 'updated_at']
 
 @admin.register(PaymentTransaction)
 class PaymentTransactionAdmin(admin.ModelAdmin):

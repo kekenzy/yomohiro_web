@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
@@ -147,6 +149,14 @@ class MemberProfile(models.Model):
     
     # 顔写真
     photo = models.ImageField(upload_to=member_photo_upload_path, blank=True, null=True, verbose_name='顔写真')
+
+    # 会員QRコード（施設確認等）。プロフィール1件につき1つの不変トークン。
+    member_qr_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        verbose_name='会員QR用トークン',
+    )
     
     # クレジットカード情報（暗号化して保存すべきですが、簡易実装として）
     card_number_encrypted = models.CharField(max_length=255, blank=True, verbose_name='カード番号（暗号化）')

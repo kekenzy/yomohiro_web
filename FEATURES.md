@@ -1,5 +1,7 @@
 # U-街プラザ 東西南北館 予約システム - 機能一覧
 
+> ドキュメント索引: [DOCUMENTATION.md](DOCUMENTATION.md) ／ 本番設定: [PRODUCTION.md](PRODUCTION.md)
+
 ## 🏗️ システム概要
 Django 4.2.7を使用したWebベースの予約システムです。場所と時間を選択して予約を作成し、管理者が予約を管理できるシステムです。
 

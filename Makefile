@@ -11,7 +11,7 @@ help:
 	@echo "  make logs        - 最新50行のログを表示"
 	@echo "  make restart     - Dockerコンテナを再起動"
 	@echo "  make shell       - webコンテナのシェルに接続"
-	@echo "  make migrate     - データベースマイグレーション実行"
+	@echo "  make migrate     - データベースマイグレーション実行（web 起動後。依存を pip で同期）"
 	@echo "  make createsuperuser - スーパーユーザー作成"
 	@echo "  make test        - テスト実行"
 	@echo "  make clean       - 停止中のコンテナと未使用イメージを削除"
@@ -57,8 +57,9 @@ restart:
 shell:
 	docker-compose exec web /bin/bash
 
-# データベースマイグレーション実行
+# データベースマイグレーション実行（requirements.txt 変更後はイメージ再ビルドか、下で pip を実行）
 migrate:
+	docker-compose exec web pip install -q -r requirements.txt
 	docker-compose exec web python manage.py migrate
 	@echo "✅ マイグレーションを実行しました"
 

@@ -49,6 +49,11 @@
                             </a>
                         </li>
                         <li class="nav-item d-lg-none">
+                            <a class="nav-link text-dark" href="{% url 'reservations:member_qr_page' %}">
+                                <i class="fas fa-qrcode"></i> 会員QRコード
+                            </a>
+                        </li>
+                        <li class="nav-item d-lg-none">
                             <a class="nav-link text-dark" href="{% url 'reservations:logout' %}">
                                 <i class="fas fa-sign-out-alt"></i> ログアウト
                             </a>
@@ -98,6 +103,9 @@
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                 <li><a class="dropdown-item" href="{% url 'reservations:user_profile' %}">
                                     <i class="fas fa-user-circle"></i> ユーザー情報
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'reservations:member_qr_page' %}">
+                                    <i class="fas fa-qrcode"></i> 会員QRコード
                                 </a></li>
                                 {% if user.is_superuser %}
                                 <li><hr class="dropdown-divider"></li>

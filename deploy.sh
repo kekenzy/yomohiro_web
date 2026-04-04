@@ -102,6 +102,10 @@ pip install -r requirements.txt
 echo "🗄️ データベースマイグレーション実行中..."
 python manage.py migrate --noinput
 
+# 設定の整合性チェック（依存不足や設定ミスで早期に失敗させる）
+echo "🔍 Django システムチェック..."
+python manage.py check
+
 # 静的ファイルを収集
 echo "📁 静的ファイルを収集中..."
 python manage.py collectstatic --noinput
