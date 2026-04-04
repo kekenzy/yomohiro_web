@@ -211,3 +211,52 @@ class PaymentTransaction(models.Model):
 
     def __str__(self):
         return f"決済 #{self.id} - {self.amount}円 - {self.get_status_display()}"
+
+
+class VisitRecord(models.Model):
+    """入退室記録（管理画面の入退室管理）"""
+    member_profile = models.ForeignKey(
+        MemberProfile,
+        on_delete=models.CASCADE,
+        related_name='visit_records',
+        verbose_name='会員',
+    )
+    location = models.ForeignKey(Location, on_delete=models.CASCADE, verbose_name='場所')
+    time_slot = models.ForeignKey(
+        TimeSlot,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='時間枠',
+    )
+    date = models.DateField(verbose_name='利用日')
+    reservation = models.ForeignKey(
+        Reservation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='紐付け予約',
+    )
+    entry_at = models.DateTimeField(verbose_name='入場日時')
+    exit_at = models.DateTimeField(null=True, blank=True, verbose_name='退場日時')
+    billed_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=0,
+        null=True,
+        blank=True,
+        verbose_name='請求額（円）',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = '入退室記録'
+        verbose_name_plural = '入退室記録'
+        ordering = ['-entry_at']
+        indexes = [
+            models.Index(fields=['date', 'location']),
+            models.Index(fields=['member_profile', 'exit_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.member_profile.full_name} {self.date} {self.location.name}'

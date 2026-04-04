@@ -5,7 +5,7 @@
 ## 📋 前提条件
 
 Let's EncryptでSSL証明書を取得するには、**ドメイン名が必要**です。
-- IPアドレス（54.64.209.76）だけでは証明書を発行できません
+- IPアドレス（54.178.68.240）だけでは証明書を発行できません
 - ドメインを取得し、DNSでAレコードを設定する必要があります
 
 ## 🔧 設定手順
@@ -17,12 +17,12 @@ Let's EncryptでSSL証明書を取得するには、**ドメイン名が必要**
    ```
    Type: A
    Name: @ (または example.com)
-   Value: 54.64.209.76
+   Value: 54.178.68.240
    TTL: 3600
    
    Type: A
    Name: www
-   Value: 54.64.209.76
+   Value: 54.178.68.240
    TTL: 3600
    ```
 3. DNSの反映を待つ（通常数分〜数時間）
@@ -55,13 +55,17 @@ chmod +x setup_ssl.sh
 
 スクリプトが自動で以下を実行します：
 
-1. ✅ Certbotのインストール
-2. ✅ ファイアウォールでHTTPS（443）を許可
-3. ✅ Nginx設定をSSL用に更新
-4. ✅ Let's EncryptでSSL証明書を取得
-5. ✅ 自動更新の設定
-6. ✅ `.env`ファイルを更新（SSL設定を有効化）
-7. ✅ Gunicornを再起動
+1. ✅ Certbotのインストール（**webroot** 方式。Nginx は止めずに証明書を取得）
+2. ✅ ACME 用ディレクトリ `/var/www/html/.well-known/` の用意
+3. ✅ ファイアウォールで HTTPS（443）を許可（`ufw` 利用時）
+4. ✅ Nginx の `server_name` を指定ドメインに更新し、HTTP で証明書取得
+5. ✅ Let's Encrypt で SSL 証明書を取得
+6. ✅ Nginx を `config/nginx_ssl.conf` ベースの HTTPS 設定に切り替え
+7. ✅ 自動更新のテスト（`certbot renew --dry-run`）
+8. ✅ `.env` を更新（`ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` / SSL 関連フラグ）
+9. ✅ Gunicorn を再起動
+
+**注意:** リポジトリの `config/nginx.conf` には HTTP 用の `/.well-known/acme-challenge/` の `location` が含まれています。サーバの Nginx が古い場合は、`git pull` 後に `config/nginx.conf` を反映するか、手動で同じ `location` を追加してください。
 
 ### 4. 確認
 

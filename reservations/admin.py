@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Location, TimeSlot, Reservation, Plan, MemberProfile, PaymentTransaction
+from .models import Location, TimeSlot, Reservation, Plan, MemberProfile, PaymentTransaction, VisitRecord
 
 @admin.register(Location)
 class LocationAdmin(admin.ModelAdmin):
@@ -49,6 +49,15 @@ class MemberProfileAdmin(admin.ModelAdmin):
     search_fields = ['full_name', 'user__username', 'user__email', 'phone']
     ordering = ['-created_at']
     readonly_fields = ['member_qr_token', 'created_at', 'updated_at']
+
+@admin.register(VisitRecord)
+class VisitRecordAdmin(admin.ModelAdmin):
+    list_display = ['member_profile', 'location', 'date', 'time_slot', 'entry_at', 'exit_at', 'billed_amount']
+    list_filter = ['date', 'location']
+    search_fields = ['member_profile__full_name', 'member_profile__user__email']
+    ordering = ['-entry_at']
+    readonly_fields = ['created_at', 'updated_at']
+
 
 @admin.register(PaymentTransaction)
 class PaymentTransactionAdmin(admin.ModelAdmin):

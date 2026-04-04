@@ -2,6 +2,9 @@
 
 # Let's Encrypt SSL証明書設定スクリプト
 # 使用方法: ./setup_ssl.sh your-domain.com
+#
+# certbot は --webroot を使用（Nginx を停止しない）。初回の HTTP 用 nginx.conf に
+# /.well-known/acme-challenge/ が含まれている必要があります。
 
 set -e
 
@@ -13,32 +16,46 @@ fi
 
 DOMAIN=$1
 WWW_DOMAIN="www.$DOMAIN"
+WEBROOT="/var/www/html"
 
 echo "🔒 Let's Encrypt SSL証明書の設定を開始します..."
 echo "📍 ドメイン: $DOMAIN, $WWW_DOMAIN"
 
-# Certbotのインストール
+# Certbotのインストール（webroot 用。nginx プラグインは不要）
 echo "📦 Certbotをインストール中..."
 sudo apt-get update -qq
-sudo apt-get install -y certbot python3-certbot-nginx
+sudo apt-get install -y certbot
+
+# ACME チャレンジ用ディレクトリ
+echo "📁 ACME 用ディレクトリを作成中..."
+sudo mkdir -p "$WEBROOT/.well-known/acme-challenge"
+sudo chown -R www-data:www-data "$WEBROOT" 2>/dev/null || true
 
 # ファイアウォールでHTTPSを許可
 echo "🔥 ファイアウォールでHTTPSを許可中..."
-sudo ufw allow 'Nginx Full'
-sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full' 2>/dev/null || true
+sudo ufw allow OpenSSH 2>/dev/null || true
 
 # Nginx設定を更新（server_nameを設定）
 echo "⚙️  Nginx設定を更新中..."
 sudo sed -i "s/server_name _;/server_name $DOMAIN $WWW_DOMAIN;/" /etc/nginx/sites-available/yomohiro_web
 sudo nginx -t
 
-# Nginxを再起動
-echo "🔄 Nginxを再起動中..."
-sudo systemctl restart nginx
+# Nginxを再読み込み（ポート80で webroot を公開）
+echo "🔄 Nginxを再読み込み中..."
+sudo systemctl reload nginx
 
-# SSL証明書の取得（Nginxプラグインを使用せず、スタンドアロンで取得）
+# SSL証明書の取得（webroot: Nginx は起動したまま）
 echo "📜 SSL証明書を取得中..."
-sudo certbot certonly --standalone -d $DOMAIN -d $WWW_DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --preferred-challenges http
+sudo certbot certonly \
+    --webroot \
+    -w "$WEBROOT" \
+    -d "$DOMAIN" \
+    -d "$WWW_DOMAIN" \
+    --non-interactive \
+    --agree-tos \
+    --email "admin@$DOMAIN" \
+    --preferred-challenges http
 
 # Nginx設定をSSL用に更新
 echo "⚙️  Nginx設定をSSL用に更新中..."
@@ -58,14 +75,18 @@ sudo certbot renew --dry-run
 echo "⚙️  .envファイルを更新中..."
 cd /home/ubuntu/yomohiro_web
 if [ -f .env ]; then
-    # ALLOWED_HOSTSにドメインを追加
-    sed -i "s|ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$DOMAIN,$WWW_DOMAIN,54.64.209.76,localhost,127.0.0.1|" .env
-    
-    # SSL設定を有効化
+    sed -i "s|ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$DOMAIN,$WWW_DOMAIN,54.178.68.240,localhost,127.0.0.1|" .env
+
+    if grep -q '^CSRF_TRUSTED_ORIGINS=' .env; then
+        sed -i "s|CSRF_TRUSTED_ORIGINS=.*|CSRF_TRUSTED_ORIGINS=https://$DOMAIN,https://$WWW_DOMAIN|" .env
+    else
+        echo "CSRF_TRUSTED_ORIGINS=https://$DOMAIN,https://$WWW_DOMAIN" >> .env
+    fi
+
     sed -i 's/SECURE_SSL_REDIRECT=False/SECURE_SSL_REDIRECT=True/' .env
     sed -i 's/SESSION_COOKIE_SECURE=False/SESSION_COOKIE_SECURE=True/' .env
     sed -i 's/CSRF_COOKIE_SECURE=False/CSRF_COOKIE_SECURE=True/' .env
-    
+
     echo "✅ .envファイルを更新しました"
 else
     echo "⚠️  .envファイルが見つかりません。手動で設定してください。"
@@ -79,10 +100,9 @@ echo ""
 echo "✅ SSL証明書の設定が完了しました！"
 echo ""
 echo "🌐 HTTPS URL: https://$DOMAIN"
-echo "🔒 証明書の自動更新は設定済みです"
+echo "🔒 証明書の自動更新は certbot の systemd タイマーで行われます（renew --dry-run で確認済み）"
 echo ""
 echo "次のステップ："
 echo "1. DNS設定を確認してください（Aレコードが正しく設定されているか）"
 echo "2. https://$DOMAIN にアクセスして動作確認"
 echo "3. HTTPからHTTPSへのリダイレクトが動作しているか確認"
-

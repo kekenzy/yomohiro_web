@@ -9,6 +9,10 @@ class SuperuserRequiredMiddleware:
     ADMIN_URL_PATTERNS = [
         'reservations:reservation_list',
         'reservations:admin_dashboard',
+        'reservations:visit_management',
+        'reservations:visit_api_entry',
+        'reservations:visit_api_exit_preview',
+        'reservations:visit_api_exit_confirm',
         'reservations:location_management',
         'reservations:location_add',
         'reservations:location_edit',

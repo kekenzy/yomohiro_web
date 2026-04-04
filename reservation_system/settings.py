@@ -27,7 +27,19 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-mtim@1y@$*^jyt9+re8p8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+# 本番ドメインは環境変数 ALLOWED_HOSTS（カンマ区切り）で上書き可能
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='localhost,127.0.0.1,yomohiro.com,www.yomohiro.com',
+    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()],
+)
+
+# HTTPS 経由のフォーム POST 等（Django 4.0+）。環境変数 CSRF_TRUSTED_ORIGINS で上書き可能
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='https://yomohiro.com,https://www.yomohiro.com',
+    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()],
+)
 
 
 # Application definition

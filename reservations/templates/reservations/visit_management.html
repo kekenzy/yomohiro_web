@@ -1,0 +1,320 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}入退室管理 - 予約システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .visit-cal-table { font-size: 0.8rem; table-layout: fixed; }
+    .visit-cal-table th, .visit-cal-table td { padding: 0.35rem; vertical-align: top; border: 1px solid #dee2e6; }
+    .visit-cal-table th { background-color: #ffc107; color: #000; font-weight: bold; position: sticky; top: 0; z-index: 2; }
+    .visit-cal-table .time-cell { background: #f8f9fa; font-weight: 600; white-space: nowrap; width: 7rem; z-index: 1; }
+    .visit-cal-table .loc-header { min-width: 6rem; }
+    .visit-name { font-size: 0.75rem; line-height: 1.3; margin-bottom: 0.2rem; }
+    .visit-badge-in { color: #0d6efd; font-weight: bold; }
+    .visit-badge-out { color: #6c757d; }
+    #reader-entry, #reader-exit { min-height: 240px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <h1 class="h3 mb-0"><i class="fas fa-door-open text-warning"></i> 入退室管理</h1>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalEntryScan">
+                <i class="fas fa-sign-in-alt"></i> 入場スキャン
+            </button>
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalExitScan">
+                <i class="fas fa-sign-out-alt"></i> 退場スキャン
+            </button>
+            <a href="{% url 'reservations:admin_dashboard' %}" class="btn btn-outline-secondary">管理画面</a>
+        </div>
+    </div>
+
+    <div class="week-navigation d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <a href="?date={{ prev_date|date:'Y-m-d' }}" class="btn btn-outline-warning btn-sm">← 前日</a>
+        <strong>{{ target_date|date:"Y年m月d日 (l)" }}</strong>
+        <a href="?date={{ next_date|date:'Y-m-d' }}" class="btn btn-outline-warning btn-sm">翌日 →</a>
+    </div>
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label class="form-label small mb-0">日付を指定</label>
+            <input type="date" name="date" class="form-control form-control-sm" value="{{ target_date|date:'Y-m-d' }}">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-warning btn-sm">表示</button>
+        </div>
+    </form>
+
+    {% if orphan_visits %}
+    <div class="alert alert-warning small">
+        時間枠未設定の記録: {% for v in orphan_visits %}{{ v.member_profile.full_name }}（{{ v.location.name }}）{% if not forloop.last %}、{% endif %}{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm visit-cal-table">
+            <thead>
+                <tr>
+                    <th class="time-cell">時間</th>
+                    {% for loc in locations %}
+                    <th class="loc-header">{{ loc.name }}</th>
+                    {% empty %}
+                    <th>場所がありません</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td class="time-cell">{{ row.slot.start_time|time:"H:i" }}〜{{ row.slot.end_time|time:"H:i" }}</td>
+                    {% for cell in row.cells %}
+                    <td class="text-start">
+                        {% for v in cell.visits %}
+                        <div class="visit-name border-bottom pb-1 mb-1">
+                            <strong>{{ v.member_profile.full_name }}</strong>
+                            {% if v.reservation %}
+                            <span class="badge bg-info text-dark" title="予約紐付け">予</span>
+                            {% endif %}
+                            <br>
+                            <span class="small">入 {{ v.entry_at|time:"H:i" }}</span>
+                            {% if v.exit_at %}
+                            <span class="visit-badge-out small">退 {{ v.exit_at|time:"H:i" }} {% if v.billed_amount %}（{{ v.billed_amount }}円）{% endif %}</span>
+                            {% else %}
+                            <span class="visit-badge-in small">入室中</span>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <span class="text-muted">—</span>
+                        {% endfor %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="{{ locations|length|add:1 }}">時間枠が未設定です。時間枠管理を確認してください。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 入場スキャン -->
+<div class="modal fade" id="modalEntryScan" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-sign-in-alt"></i> 入場スキャン</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" id="entryModalClose"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">カメラを許可し、会員のQRコードを枠内に合わせてください。</p>
+                <div id="reader-entry"></div>
+                <div id="entry-status" class="mt-2 small"></div>
+                <div id="entry-location-pick" class="mt-3" style="display:none;">
+                    <label class="form-label">場所を選択（当日予約がない場合）</label>
+                    <select id="entry-location-select" class="form-select">
+                        {% for loc in locations %}
+                        <option value="{{ loc.id }}">{{ loc.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" class="btn btn-warning mt-2" id="entry-location-submit">この場所で入場を記録</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 退場スキャン -->
+<div class="modal fade" id="modalExitScan" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-sign-out-alt"></i> 退場スキャン</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" id="exitModalClose"></button>
+            </div>
+            <div class="modal-body">
+                <div id="reader-exit"></div>
+                <div id="exit-status" class="mt-2 small"></div>
+                <div id="exit-fee-panel" class="mt-3 p-3 bg-light rounded" style="display:none;">
+                    <h6 class="mb-2">お支払い金額（目安）</h6>
+                    <p class="display-6 mb-1" id="exit-amount">—</p>
+                    <p class="small text-muted mb-2" id="exit-detail"></p>
+                    <button type="button" class="btn btn-danger" id="exit-confirm-btn" disabled>
+                        <i class="fas fa-check"></i> 退場を完了する
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+(function() {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    function postJson(url, body) {
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(body),
+        }).then(r => r.json());
+    }
+
+    let entryScanner = null;
+    let exitScanner = null;
+    let pendingEntryQr = null;
+    let pendingExitVisitId = null;
+    let entryBusy = false;
+    let exitBusy = false;
+
+    function stopEntryScanner() {
+        if (entryScanner) {
+            entryScanner.stop().catch(() => {}).finally(() => { entryScanner = null; });
+        }
+        document.getElementById('reader-entry').innerHTML = '';
+    }
+    function stopExitScanner() {
+        if (exitScanner) {
+            exitScanner.stop().catch(() => {}).finally(() => { exitScanner = null; });
+        }
+        document.getElementById('reader-exit').innerHTML = '';
+    }
+
+    const modalEntry = document.getElementById('modalEntryScan');
+    modalEntry.addEventListener('shown.bs.modal', () => {
+        document.getElementById('entry-status').textContent = '';
+        document.getElementById('entry-location-pick').style.display = 'none';
+        pendingEntryQr = null;
+        const el = document.getElementById('reader-entry');
+        el.innerHTML = '';
+        entryScanner = new Html5Qrcode('reader-entry');
+        entryScanner.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 220, height: 220 } },
+            (text) => { handleEntryQr(text); },
+            () => {}
+        ).catch(err => {
+            document.getElementById('entry-status').innerHTML = '<span class="text-danger">カメラを起動できません: ' + err + '</span>';
+        });
+    });
+    modalEntry.addEventListener('hidden.bs.modal', () => {
+        stopEntryScanner();
+    });
+
+    function handleEntryQr(text) {
+        if (!entryScanner || entryBusy) return;
+        entryBusy = true;
+        stopEntryScanner();
+        document.getElementById('entry-status').textContent = '処理中…';
+        postJson('{% url "reservations:visit_api_entry" %}', { qr_text: text })
+            .then(data => {
+                if (data.ok) {
+                    document.getElementById('entry-status').innerHTML = '<span class="text-success">' + (data.message || '入場を記録しました') + '</span>';
+                    setTimeout(() => { window.location.reload(); }, 800);
+                    return;
+                }
+                if (data.need_location) {
+                    pendingEntryQr = text;
+                    document.getElementById('entry-location-pick').style.display = 'block';
+                    document.getElementById('entry-status').textContent = (data.member_name || '会員') + ' — 場所を選択してください';
+                    entryBusy = false;
+                    return;
+                }
+                document.getElementById('entry-status').innerHTML = '<span class="text-danger">' + (data.error || 'エラー') + '</span>';
+                entryBusy = false;
+            })
+            .catch(() => {
+                document.getElementById('entry-status').textContent = '通信エラー';
+                entryBusy = false;
+            });
+    }
+
+    document.getElementById('entry-location-submit').addEventListener('click', () => {
+        const lid = document.getElementById('entry-location-select').value;
+        if (!pendingEntryQr) return;
+        document.getElementById('entry-status').textContent = '処理中…';
+        postJson('{% url "reservations:visit_api_entry" %}', { qr_text: pendingEntryQr, location_id: parseInt(lid, 10) })
+            .then(data => {
+                if (data.ok) {
+                    document.getElementById('entry-status').innerHTML = '<span class="text-success">' + (data.message || '入場を記録しました') + '</span>';
+                    stopEntryScanner();
+                    setTimeout(() => { window.location.reload(); }, 800);
+                } else {
+                    document.getElementById('entry-status').innerHTML = '<span class="text-danger">' + (data.error || 'エラー') + '</span>';
+                }
+            });
+    });
+
+    const modalExit = document.getElementById('modalExitScan');
+    modalExit.addEventListener('shown.bs.modal', () => {
+        document.getElementById('exit-status').textContent = '';
+        document.getElementById('exit-fee-panel').style.display = 'none';
+        document.getElementById('exit-confirm-btn').disabled = true;
+        pendingExitVisitId = null;
+        const el = document.getElementById('reader-exit');
+        el.innerHTML = '';
+        exitScanner = new Html5Qrcode('reader-exit');
+        exitScanner.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 220, height: 220 } },
+            (text) => { handleExitQr(text); },
+            () => {}
+        ).catch(err => {
+            document.getElementById('exit-status').innerHTML = '<span class="text-danger">カメラを起動できません: ' + err + '</span>';
+        });
+    });
+    modalExit.addEventListener('hidden.bs.modal', () => {
+        stopExitScanner();
+    });
+
+    function handleExitQr(text) {
+        if (!exitScanner || exitBusy) return;
+        exitBusy = true;
+        stopExitScanner();
+        document.getElementById('exit-status').textContent = '料金を計算中…';
+        postJson('{% url "reservations:visit_api_exit_preview" %}', { qr_text: text })
+            .then(data => {
+                if (!data.ok) {
+                    document.getElementById('exit-status').innerHTML = '<span class="text-danger">' + (data.error || 'エラー') + '</span>';
+                    exitBusy = false;
+                    return;
+                }
+                pendingExitVisitId = data.visit_id;
+                document.getElementById('exit-amount').textContent = data.amount + ' 円';
+                document.getElementById('exit-detail').textContent =
+                    data.member_name + ' / ' + data.location_name + ' / 利用約 ' + data.duration_minutes + ' 分';
+                document.getElementById('exit-fee-panel').style.display = 'block';
+                document.getElementById('exit-confirm-btn').disabled = false;
+                document.getElementById('exit-status').textContent = '金額を確認し、退場完了を押してください';
+            })
+            .catch(() => {
+                document.getElementById('exit-status').textContent = '通信エラー';
+                exitBusy = false;
+            });
+    }
+
+    document.getElementById('exit-confirm-btn').addEventListener('click', () => {
+        if (!pendingExitVisitId) return;
+        document.getElementById('exit-confirm-btn').disabled = true;
+        postJson('{% url "reservations:visit_api_exit_confirm" %}', { visit_id: pendingExitVisitId })
+            .then(data => {
+                if (data.ok) {
+                    document.getElementById('exit-status').innerHTML = '<span class="text-success">' + (data.message || '退場を記録しました') + '</span>';
+                    setTimeout(() => { window.location.reload(); }, 800);
+                } else {
+                    document.getElementById('exit-status').innerHTML = '<span class="text-danger">' + (data.error || 'エラー') + '</span>';
+                    document.getElementById('exit-confirm-btn').disabled = false;
+                }
+            });
+    });
+})();
+</script>
+{% endblock %}

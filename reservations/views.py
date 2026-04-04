@@ -7,20 +7,21 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.http import HttpResponse, JsonResponse
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
+from django.utils import timezone
 from datetime import date, datetime, timedelta
 import io
 import json
 import base64
 import hmac
 import hashlib
-from .models import Location, TimeSlot, Reservation, Plan, MemberProfile
+from .models import Location, TimeSlot, Reservation, Plan, MemberProfile, VisitRecord
 from .member_utils import get_default_regular_member_plan
 from .forms import (
     ReservationForm, ReservationSearchForm, LocationForm, TimeSlotForm, PlanForm,
@@ -2726,6 +2727,212 @@ def member_qr_image(request):
     buf = io.BytesIO()
     img.save(buf)
     return HttpResponse(buf.getvalue(), content_type='image/svg+xml; charset=utf-8')
+
+
+@login_required
+@superuser_required
+def visit_management(request):
+    """入退室管理（日別・場所×時間枠グリッド）"""
+    target_str = request.GET.get('date')
+    if target_str:
+        try:
+            target_date = datetime.strptime(target_str, '%Y-%m-%d').date()
+        except ValueError:
+            target_date = date.today()
+    else:
+        target_date = date.today()
+
+    locations = list(Location.objects.filter(is_active=True).order_by('name'))
+    time_slots = list(TimeSlot.objects.filter(is_active=True).order_by('start_time'))
+
+    visits = list(VisitRecord.objects.filter(date=target_date).select_related(
+        'member_profile', 'location', 'time_slot', 'reservation',
+    ))
+    grid = {}
+    for v in visits:
+        key = (v.time_slot_id or 0, v.location_id)
+        grid.setdefault(key, []).append(v)
+
+    rows = []
+    for slot in time_slots:
+        cells = []
+        for loc in locations:
+            key = (slot.id, loc.id)
+            cells.append({'location': loc, 'visits': grid.get(key, [])})
+        rows.append({'slot': slot, 'cells': cells})
+
+    orphan_visits = [v for v in visits if v.time_slot_id is None]
+
+    return render(request, 'reservations/visit_management.html', {
+        'target_date': target_date,
+        'prev_date': target_date - timedelta(days=1),
+        'next_date': target_date + timedelta(days=1),
+        'locations': locations,
+        'time_slots': time_slots,
+        'rows': rows,
+        'orphan_visits': orphan_visits,
+    })
+
+
+@login_required
+@superuser_required
+@require_POST
+def visit_api_entry(request):
+    """QR による入場登録"""
+    import json
+    from . import visit_utils
+
+    try:
+        body = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'ok': False, 'error': '不正なJSONです'}, status=400)
+
+    raw = body.get('qr_text') or body.get('raw') or ''
+    location_id = body.get('location_id')
+
+    token = visit_utils.parse_member_qr_payload(raw)
+    member = visit_utils.get_member_by_qr_token(token)
+    if not member:
+        return JsonResponse({'ok': False, 'error': '会員QRを認識できませんでした'})
+
+    if visit_utils.get_open_visit(member):
+        return JsonResponse({'ok': False, 'error': 'すでに入室中です。退場スキャンを先に行ってください。'})
+
+    today = timezone.localdate()
+    now = timezone.now()
+
+    if location_id:
+        try:
+            loc = Location.objects.get(pk=int(location_id), is_active=True)
+        except (Location.DoesNotExist, ValueError, TypeError):
+            return JsonResponse({'ok': False, 'error': '場所が無効です'})
+        res = visit_utils.pick_reservation_for_entry(member, today, location_id=loc.id)
+        slot = res.time_slot if res else visit_utils.resolve_time_slot_for_now()
+        if not slot:
+            return JsonResponse({'ok': False, 'error': '時間枠が設定されていません'})
+        vr = VisitRecord.objects.create(
+            member_profile=member,
+            location=loc,
+            time_slot=slot,
+            date=today,
+            reservation=res,
+            entry_at=now,
+        )
+        return JsonResponse({
+            'ok': True,
+            'message': f'{member.full_name} 様を入場として記録しました',
+            'visit_id': vr.id,
+            'linked_reservation': bool(res),
+        })
+
+    res = visit_utils.pick_reservation_for_entry(member, today, location_id=None)
+    if res:
+        slot = res.time_slot
+        vr = VisitRecord.objects.create(
+            member_profile=member,
+            location=res.location,
+            time_slot=slot,
+            date=today,
+            reservation=res,
+            entry_at=now,
+        )
+        return JsonResponse({
+            'ok': True,
+            'message': f'{member.full_name} 様を入場として記録しました（予約に紐付け）',
+            'visit_id': vr.id,
+            'linked_reservation': True,
+        })
+
+    locs = list(Location.objects.filter(is_active=True).order_by('name').values('id', 'name'))
+    return JsonResponse({
+        'ok': False,
+        'need_location': True,
+        'member_name': member.full_name,
+        'locations': list(locs),
+    })
+
+
+@login_required
+@superuser_required
+@require_POST
+def visit_api_exit_preview(request):
+    """退場プレビュー（料金計算）"""
+    import json
+    from . import visit_utils
+
+    try:
+        body = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'ok': False, 'error': '不正なJSONです'}, status=400)
+
+    raw = body.get('qr_text') or body.get('raw') or ''
+    token = visit_utils.parse_member_qr_payload(raw)
+    member = visit_utils.get_member_by_qr_token(token)
+    if not member:
+        return JsonResponse({'ok': False, 'error': '会員QRを認識できませんでした'})
+
+    visit = visit_utils.get_open_visit(member)
+    if not visit:
+        return JsonResponse({'ok': False, 'error': '入場記録が見つかりません（すでに退場済みか未入場です）'})
+
+    now = timezone.now()
+    amount = visit_utils.compute_visit_fee(visit.entry_at, now, visit.location)
+    delta = now - visit.entry_at
+    minutes = int(delta.total_seconds() // 60)
+
+    return JsonResponse({
+        'ok': True,
+        'visit_id': visit.id,
+        'member_name': member.full_name,
+        'location_name': visit.location.name,
+        'entry_at': timezone.localtime(visit.entry_at).isoformat(),
+        'duration_minutes': minutes,
+        'amount': int(amount),
+    })
+
+
+@login_required
+@superuser_required
+@require_POST
+def visit_api_exit_confirm(request):
+    """退場確定"""
+    import json
+    from . import visit_utils
+
+    try:
+        body = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'ok': False, 'error': '不正なJSONです'}, status=400)
+
+    visit_id = body.get('visit_id')
+    raw = body.get('qr_text') or body.get('raw') or ''
+
+    visit = None
+    if visit_id:
+        try:
+            visit = VisitRecord.objects.get(pk=int(visit_id), exit_at__isnull=True)
+        except (VisitRecord.DoesNotExist, ValueError, TypeError):
+            pass
+    if not visit:
+        token = visit_utils.parse_member_qr_payload(raw)
+        member = visit_utils.get_member_by_qr_token(token)
+        if member:
+            visit = visit_utils.get_open_visit(member)
+
+    if not visit:
+        return JsonResponse({'ok': False, 'error': '退場対象の入場記録が見つかりません'})
+
+    now = timezone.now()
+    amount = visit_utils.compute_visit_fee(visit.entry_at, now, visit.location)
+    visit.exit_at = now
+    visit.billed_amount = amount
+    visit.save()
+
+    return JsonResponse({
+        'ok': True,
+        'message': f'{visit.member_profile.full_name} 様の退場を記録しました',
+        'amount': int(amount),
+    })
 
 
 from .models import PaymentTransaction

@@ -36,7 +36,7 @@ GitHub (push) → GitHub Actions (CI/CD) → AWS Lightsail (本番環境)
 2. 「ネットワーキング」タブをクリック
 3. 「静的IPアドレスの作成」をクリック
 4. 名前を付けて作成
-5. 作成した静的IPをメモ（例: 54.64.209.76）
+5. 作成した静的IPをメモ（例: 54.178.68.240）
 
 ### 1.3 SSHキーペアのダウンロード
 
@@ -143,7 +143,7 @@ cat ~/.ssh/lightsail_key  # または LightsailDefaultKey-ap-northeast-1.pem
 
 | Name | Value |
 |------|-------|
-| `LIGHTSAIL_HOST` | LightsailインスタンスのIPアドレス（例: 54.64.209.76） |
+| `LIGHTSAIL_HOST` | LightsailインスタンスのIPアドレス（例: 54.178.68.240） |
 | `LIGHTSAIL_USER` | `ubuntu` |
 | `LIGHTSAIL_SSH_KEY` | SSH秘密鍵の内容全体 |
 
