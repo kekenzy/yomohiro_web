@@ -21,10 +21,27 @@ WEBROOT="/var/www/html"
 echo "🔒 Let's Encrypt SSL証明書の設定を開始します..."
 echo "📍 ドメイン: $DOMAIN, $WWW_DOMAIN"
 
+# 公開 DNS に A レコードが無いと Let's Encrypt は必ず失敗する
+if command -v dig >/dev/null 2>&1; then
+    if ! dig +short "$DOMAIN" A | grep -qE '^[0-9.]'; then
+        echo "❌ DNS エラー: $DOMAIN の A レコードが見つかりません（NXDOMAIN または未設定）。"
+        echo "   レジストラで A レコードをサーバのグローバル IP に向け、反映を待ってから再実行してください。"
+        exit 1
+    fi
+    if ! dig +short "$WWW_DOMAIN" A | grep -qE '^[0-9.]'; then
+        echo "❌ DNS エラー: $WWW_DOMAIN の A レコードが見つかりません。"
+        echo "   www 用の A（または CNAME）を設定してから再実行してください。"
+        exit 1
+    fi
+fi
+
+# apt が対話プロンプトで止まらないようにする（リモート実行でよく詰まる）
+export DEBIAN_FRONTEND=noninteractive
+
 # Certbotのインストール（webroot 用。nginx プラグインは不要）
 echo "📦 Certbotをインストール中..."
-sudo apt-get update -qq
-sudo apt-get install -y certbot
+sudo -E apt-get update -qq
+sudo -E apt-get install -y -qq certbot
 
 # ACME チャレンジ用ディレクトリ
 echo "📁 ACME 用ディレクトリを作成中..."
