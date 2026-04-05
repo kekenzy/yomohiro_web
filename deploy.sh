@@ -187,26 +187,38 @@ if [ -f "config/nginx/conf.d/yomohiro_forwarded_proto.conf" ]; then
     sudo cp config/nginx/conf.d/yomohiro_forwarded_proto.conf /etc/nginx/conf.d/
 fi
 
-# Nginxを設定（初回のみ）
-if [ ! -f "/etc/nginx/sites-available/yomohiro_web" ]; then
-    echo "⚙️  Nginxを設定中（初回セットアップ）..."
-    if [ -f "config/nginx.conf" ]; then
-        sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
-        sudo cp config/nginx.conf /etc/nginx/sites-available/yomohiro_web
+# Cloudflare「フル / フル（厳密）」はオリジンへ HTTPS（443）で接続する。443 が無いと 503 になる。
+# 自己署名は Cloudflare フル用（来訪者の TLS は Cloudflare が担当）。Let's Encrypt 取得後は差し替え可。
+if [ ! -f "/etc/nginx/ssl/cloudflare_origin.crt" ]; then
+    echo "📜 Cloudflare フル用オリジン証明書を生成（自己署名・初回のみ）..."
+    sudo mkdir -p /etc/nginx/ssl
+    if ! sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/cloudflare_origin.key \
+        -out /etc/nginx/ssl/cloudflare_origin.crt \
+        -subj "/CN=yomohirokan.com" \
+        -addext "subjectAltName=DNS:yomohirokan.com,DNS:www.yomohirokan.com" 2>/dev/null; then
+        sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+            -keyout /etc/nginx/ssl/cloudflare_origin.key \
+            -out /etc/nginx/ssl/cloudflare_origin.crt \
+            -subj "/CN=yomohirokan.com"
+    fi
+    sudo chmod 600 /etc/nginx/ssl/cloudflare_origin.key
+    sudo chmod 644 /etc/nginx/ssl/cloudflare_origin.crt
+fi
+
+# Nginx サイト設定は毎回リポジトリから反映（443 や map の変更を取り込む）
+if [ -f "config/nginx.conf" ]; then
+    echo "⚙️  Nginx サイト設定を反映..."
+    sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+    sudo cp config/nginx.conf /etc/nginx/sites-available/yomohiro_web
+    if [ ! -L "/etc/nginx/sites-enabled/yomohiro_web" ]; then
         sudo ln -sf /etc/nginx/sites-available/yomohiro_web /etc/nginx/sites-enabled/
         sudo rm -f /etc/nginx/sites-enabled/default
-        sudo nginx -t && sudo systemctl restart nginx
-        echo "✅ Nginxを設定しました"
-    else
-        echo "⚠️  config/nginx.confが見つかりません。手動で設定してください。"
     fi
+    sudo nginx -t && sudo systemctl reload nginx
+    echo "✅ Nginx を更新しました（443 は Lightsail ネットワークで TCP 443 を許可してください）"
 else
-    # Nginxを再起動
-    echo "🔄 Nginxを再起動中..."
-    sudo systemctl restart nginx || {
-        echo "⚠️  Nginxの再起動に失敗しました。状態を確認してください。"
-        sudo systemctl status nginx
-    }
+    echo "⚠️  config/nginx.conf が見つかりません。手動で設定してください。"
 fi
 
 echo "✅ デプロイが完了しました！"
