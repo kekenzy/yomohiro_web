@@ -205,6 +205,10 @@ if not DEBUG:
 
 # Security settings for production
 if not DEBUG:
+    # Nginx + Cloudflare 等: オリジンは HTTP でも来訪は HTTPS のことがある
+    # （X-Forwarded-Proto を nginx が Gunicorn に渡す前提。8000 はローカルのみ）
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
     SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
     # 静的 IP 直では証明書が無いため HTTP のまま許可（ドメイン + Let's Encrypt 後は https のみで十分）
     SECURE_SSL_REDIRECT_EXEMPT_HOSTS = config(

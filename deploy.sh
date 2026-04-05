@@ -180,6 +180,13 @@ if ! command -v nginx &> /dev/null; then
     sudo apt-get install -y nginx
 fi
 
+# Cloudflare 等の「手前 HTTPS・オリジン HTTP」で Django が誤動作しないよう map を http コンテキストに置く
+if [ -f "config/nginx/conf.d/yomohiro_forwarded_proto.conf" ]; then
+    echo "⚙️  Nginx conf.d（X-Forwarded-Proto map）を配置..."
+    sudo mkdir -p /etc/nginx/conf.d
+    sudo cp config/nginx/conf.d/yomohiro_forwarded_proto.conf /etc/nginx/conf.d/
+fi
+
 # Nginxを設定（初回のみ）
 if [ ! -f "/etc/nginx/sites-available/yomohiro_web" ]; then
     echo "⚙️  Nginxを設定中（初回セットアップ）..."
