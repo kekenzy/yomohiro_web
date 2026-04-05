@@ -21,6 +21,9 @@ WEBROOT="/var/www/html"
 echo "🔒 Let's Encrypt SSL証明書の設定を開始します..."
 echo "📍 ドメイン: $DOMAIN, $WWW_DOMAIN"
 
+# この Lightsail インスタンスのグローバル IP（お名前.com の A レコードと一致させる）
+ORIGIN_IP="${EXPECTED_ORIGIN_IP:-54.178.68.240}"
+
 # 公開 DNS に A レコードが無いと Let's Encrypt は必ず失敗する
 if command -v dig >/dev/null 2>&1; then
     if ! dig +short "$DOMAIN" A | grep -qE '^[0-9.]'; then
@@ -31,6 +34,17 @@ if command -v dig >/dev/null 2>&1; then
     if ! dig +short "$WWW_DOMAIN" A | grep -qE '^[0-9.]'; then
         echo "❌ DNS エラー: $WWW_DOMAIN の A レコードが見つかりません。"
         echo "   www 用の A（または CNAME）を設定してから再実行してください。"
+        exit 1
+    fi
+
+    # HTTP-01 は「このサーバの Nginx」に届く必要がある。Cloudflare プロキシだと別 IP になり 404 になりやすい
+    RESOLVED=$(dig +short "$DOMAIN" A @8.8.8.8 | grep -E '^[0-9.]+$' | head -1)
+    if [ -n "$RESOLVED" ] && [ "$RESOLVED" != "$ORIGIN_IP" ] && [ "${SKIP_ORIGIN_IP_CHECK:-}" != "1" ]; then
+        echo "❌ DNS がこのサーバ（$ORIGIN_IP）を向いていません。現在の A レコード: $RESOLVED"
+        echo "   Let's Encrypt は http://$DOMAIN/.well-known/acme-challenge/ にアクセスして検証します。"
+        echo "   Cloudflare 利用時: DNS の「プロキシをオフ」（灰色の雲）にするか、一時的に DNS のみにしてください。"
+        echo "   お名前.com のみ: A レコードを $ORIGIN_IP にし、反映を待ってから再実行してください。"
+        echo "   （意図的に続行する場合: SKIP_ORIGIN_IP_CHECK=1 ./setup_ssl.sh $DOMAIN）"
         exit 1
     fi
 fi
@@ -47,6 +61,16 @@ sudo -E apt-get install -y -qq certbot
 echo "📁 ACME 用ディレクトリを作成中..."
 sudo mkdir -p "$WEBROOT/.well-known/acme-challenge"
 sudo chown -R www-data:www-data "$WEBROOT" 2>/dev/null || true
+
+# ローカルで webroot が配信できるか（nginx の location が効いているか）
+echo "🧪 Nginx が /.well-known/ を配信できるか確認..."
+echo "le-ping" | sudo tee "$WEBROOT/.well-known/acme-challenge/le-ping.txt" >/dev/null
+sudo chmod 644 "$WEBROOT/.well-known/acme-challenge/le-ping.txt"
+if ! curl -sf "http://127.0.0.1/.well-known/acme-challenge/le-ping.txt" -H "Host: $DOMAIN" | grep -q le-ping; then
+    echo "❌ Nginx が $WEBROOT のチャレンジファイルを配信できていません。config/nginx.conf の location ^~ /.well-known/ を確認してください。"
+    exit 1
+fi
+sudo rm -f "$WEBROOT/.well-known/acme-challenge/le-ping.txt"
 
 # ファイアウォールでHTTPSを許可
 echo "🔥 ファイアウォールでHTTPSを許可中..."

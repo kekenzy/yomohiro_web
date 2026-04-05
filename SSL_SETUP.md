@@ -121,17 +121,31 @@ sudo certbot renew --dry-run
 
 ## 🛠️ トラブルシューティング
 
-### 証明書の取得に失敗する場合
+### 証明書の取得に失敗する場合（`unauthorized` / `404` on `/.well-known/acme-challenge/`）
+
+Let's Encrypt は **世界中から** `http://ドメイン/.well-known/acme-challenge/（ランダム）` に GET します。  
+エラーに **自分の Lightsail の IP ではないアドレス**（例: `157.x` など）が出る場合、**Cloudflare のプロキシ**で別 IP が返っている可能性が高いです。その場合、検証リクエストが **あなたのサーバ上の Nginx** に届かず **404** になります。
+
+**対処（どちらか）:**
+
+1. **Cloudflare を使っている場合**  
+   - 該当ホストの DNS で **プロキシをオフ**（**灰色の雲**・DNS のみ）にしてから、もう一度 `./setup_ssl.sh` を実行する。  
+   - 証明書が取れたら、必要なら再度プロキシをオンにしてよい（更新時も同様のことがあるため、**DNS チャレンジ**や **Cloudflare Origin CA** の検討も可）。
+
+2. **お名前.com などで A レコードだけの場合**  
+   - **A レコード**が **Lightsail の静的 IP**（例: `54.178.68.240`）を向いているか確認する。  
+   - 反映待ちのあと、`dig your-domain.com @8.8.8.8` で IP が一致するか見る。
+
+**サーバ上の確認:**
 
 ```bash
-# DNS設定を確認
-nslookup your-domain.com
-dig your-domain.com
+# DNS がオリジン IP を向いているか（Cloudflare プロキシ OFF 時はこの IP になる）
+dig +short your-domain.com A @8.8.8.8
 
-# ポート80が開いているか確認
-sudo ufw status
+# Nginx がチャレンジ用ディレクトリを返せるか（ローカル）
+echo test | sudo tee /var/www/html/.well-known/acme-challenge/ping.txt
+curl -s "http://127.0.0.1/.well-known/acme-challenge/ping.txt" -H "Host: your-domain.com"
 
-# Nginxのエラーログを確認
 sudo tail -50 /var/log/nginx/error.log
 ```
 
