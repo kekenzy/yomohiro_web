@@ -55,7 +55,7 @@ sudo ufw allow OpenSSH 2>/dev/null || true
 
 # Nginx設定を更新（server_name をドメイン + 静的 IP に）
 echo "⚙️  Nginx設定を更新中..."
-sudo sed -i "s/server_name 54.178.68.240 yomohiro.com www.yomohiro.com;/server_name $DOMAIN $WWW_DOMAIN 54.178.68.240;/" /etc/nginx/sites-available/yomohiro_web
+sudo sed -i "s/server_name 54.178.68.240 yomohirokan.com www.yomohirokan.com;/server_name $DOMAIN $WWW_DOMAIN 54.178.68.240;/" /etc/nginx/sites-available/yomohiro_web
 sudo nginx -t
 
 # Nginxを再読み込み（ポート80で webroot を公開）

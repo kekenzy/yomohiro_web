@@ -25,6 +25,7 @@ echo "✅ SSH接続成功"
 echo "📤 リモートでデプロイスクリプトを実行中..."
 ssh yomohiro 'bash -s' << 'ENDSSH'
 set -e
+export DEBIAN_FRONTEND=noninteractive
 
 echo "🚀 デプロイを開始します..."
 
@@ -94,9 +95,22 @@ fi
 
 source venv/bin/activate
 
-# 依存関係をインストール
-echo "📦 依存関係をインストール中..."
-pip install -r requirements.txt
+# pip: SSH 経由だと TTY が無く進捗が出ず「止まった」ように見える・PyPI が遅いと無限待ちに見える
+# 対策: 進捗バー強制、タイムアウト/リトライ、毎回の pip 自己更新チェックを無効化
+export PYTHONUNBUFFERED=1
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+export PIP_PROGRESS_BAR=on
+
+PIP_TIMEOUT=180
+PIP_RETRIES=5
+
+echo "📦 pip / setuptools / wheel を更新中..."
+python -m pip install --upgrade pip setuptools wheel \
+    --timeout "$PIP_TIMEOUT" --retries "$PIP_RETRIES"
+
+echo "📦 依存関係をインストール中（初回や PyPI が遅いときは数分かかります）..."
+python -m pip install -r requirements.txt \
+    --timeout "$PIP_TIMEOUT" --retries "$PIP_RETRIES" --progress-bar on
 
 # データベースマイグレーション
 echo "🗄️ データベースマイグレーション実行中..."
@@ -129,8 +143,8 @@ if [ ! -f ".env" ]; then
     cat > .env << EOF
 SECRET_KEY=$SECRET_KEY
 DEBUG=False
-ALLOWED_HOSTS=54.178.68.240,localhost,127.0.0.1,yomohiro.com,www.yomohiro.com
-CSRF_TRUSTED_ORIGINS=https://yomohiro.com,https://www.yomohiro.com
+ALLOWED_HOSTS=54.178.68.240,localhost,127.0.0.1,yomohirokan.com,www.yomohirokan.com
+CSRF_TRUSTED_ORIGINS=https://yomohirokan.com,https://www.yomohirokan.com
 SECURE_SSL_REDIRECT=False
 SESSION_COOKIE_SECURE=False
 CSRF_COOKIE_SECURE=False

@@ -30,14 +30,14 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 # 本番ドメインは環境変数 ALLOWED_HOSTS（カンマ区切り）で上書き可能
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='localhost,127.0.0.1,yomohiro.com,www.yomohiro.com',
+    default='localhost,127.0.0.1,yomohirokan.com,www.yomohirokan.com',
     cast=lambda v: [s.strip() for s in v.split(',') if s.strip()],
 )
 
 # HTTPS 経由のフォーム POST 等（Django 4.0+）。環境変数 CSRF_TRUSTED_ORIGINS で上書き可能
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='https://yomohiro.com,https://www.yomohiro.com',
+    default='https://yomohirokan.com,https://www.yomohirokan.com',
     cast=lambda v: [s.strip() for s in v.split(',') if s.strip()],
 )
 
