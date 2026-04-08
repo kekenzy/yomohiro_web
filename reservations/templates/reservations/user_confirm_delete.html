@@ -1,0 +1,45 @@
+{% extends 'reservations/base.html' %}
+
+{% block title %}ユーザーを削除 - U-街プラザ 東西南北館{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4 text-danger">
+            <i class="fas fa-user-times"></i> ユーザーの削除
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">確認</h5>
+            </div>
+            <div class="card-body">
+                <p>次のユーザーを<strong>完全に削除</strong>します。この操作は取り消せません。</p>
+                <ul class="list-group list-group-flush mb-3">
+                    <li class="list-group-item"><strong>ユーザー名:</strong> {{ target_user.username }}</li>
+                    <li class="list-group-item"><strong>メール:</strong> {{ target_user.email }}</li>
+                    {% if profile %}
+                    <li class="list-group-item"><strong>氏名:</strong> {{ profile.full_name }}</li>
+                    {% endif %}
+                    {% if target_user.is_superuser %}
+                    <li class="list-group-item"><span class="badge bg-danger">管理者アカウント</span></li>
+                    {% endif %}
+                    <li class="list-group-item"><strong>作成した予約（紐付け）:</strong> {{ reservation_count }} 件（作成者は空になります）</li>
+                </ul>
+                <p class="text-muted small">会員プロフィール・入退室記録・決済履歴など、関連データも削除される場合があります。</p>
+                <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt"></i> 削除する
+                    </button>
+                </form>
+                <a href="{% url 'reservations:user_detail' pk=target_user.pk %}" class="btn btn-secondary ms-2">キャンセル</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

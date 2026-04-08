@@ -21,6 +21,14 @@ class SuperuserRequiredMiddleware:
         'reservations:time_slot_add',
         'reservations:time_slot_edit',
         'reservations:time_slot_delete',
+        'reservations:plan_management',
+        'reservations:plan_add',
+        'reservations:plan_edit',
+        'reservations:plan_delete',
+        'reservations:user_management',
+        'reservations:user_detail',
+        'reservations:user_edit',
+        'reservations:user_delete',
     ]
     
     def __init__(self, get_response):

@@ -21,54 +21,89 @@
 {% endif %}
 
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-lg-8">
         <div class="card border-warning">
             <div class="card-header bg-warning text-dark">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-edit text-dark"></i> ユーザー情報
+                    <i class="fas fa-edit text-dark"></i> アカウント・会員情報
                 </h5>
             </div>
             <div class="card-body">
-                <div class="mb-3">
-                    <strong>ユーザー名:</strong> {{ user.username }}<br>
-                    <strong>メールアドレス:</strong> {{ user.email }}<br>
-                    {% if profile %}
-                        <strong>氏名:</strong> {{ profile.full_name }}
-                    {% endif %}
-                </div>
-                
-                <form method="post">
+                <p class="text-muted small mb-3">
+                    対象: <strong>{{ member_user.username }}</strong>
+                    {% if member_user.is_superuser %}<span class="badge bg-danger">管理者</span>{% endif %}
+                </p>
+                <form method="post" novalidate>
                     {% csrf_token %}
-                    
-                    <div class="mb-3">
-                        <div class="form-check">
-                            {{ form.is_special_user }}
-                            <label class="form-check-label" for="{{ form.is_special_user.id_for_label }}">
-                                <i class="fas fa-star"></i> {{ form.is_special_user.label }}
-                            </label>
-                        </div>
-                        {% if form.is_special_user.errors %}
-                            <div class="text-danger">
-                                {% for error in form.is_special_user.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                        <small class="form-text text-muted">
-                            特別ユーザーに設定すると、3ヶ月先まで予約可能になります。一般ユーザーは1ヶ月先までです。
-                        </small>
-                    </div>
-                    
                     {% if form.non_field_errors %}
                         <div class="alert alert-danger">
                             {% for error in form.non_field_errors %}
-                                <small>{{ error }}</small>
+                                <div>{{ error }}</div>
                             {% endfor %}
                         </div>
                     {% endif %}
-                    
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'reservations:user_detail' pk=user.pk %}" class="btn btn-secondary">
+
+                    <h6 class="text-secondary border-bottom pb-2 mb-3">ログイン情報</h6>
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+                        {{ form.username }}
+                        {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.new_password1.id_for_label }}" class="form-label">{{ form.new_password1.label }}</label>
+                        {{ form.new_password1 }}
+                        {% if form.new_password1.errors %}<div class="text-danger small">{{ form.new_password1.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.new_password2.id_for_label }}" class="form-label">{{ form.new_password2.label }}</label>
+                        {{ form.new_password2 }}
+                        {% if form.new_password2.errors %}<div class="text-danger small">{{ form.new_password2.errors }}</div>{% endif %}
+                    </div>
+
+                    <h6 class="text-secondary border-bottom pb-2 mb-3 mt-4">会員プロフィール</h6>
+                    <div class="mb-3">
+                        <label for="{{ form.full_name.id_for_label }}" class="form-label">{{ form.full_name.label }}</label>
+                        {{ form.full_name }}
+                        {% if form.full_name.errors %}<div class="text-danger small">{{ form.full_name.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.gender.id_for_label }}" class="form-label">{{ form.gender.label }}</label>
+                        {{ form.gender }}
+                        {% if form.gender.errors %}<div class="text-danger small">{{ form.gender.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.phone.id_for_label }}" class="form-label">{{ form.phone.label }}</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}<div class="text-danger small">{{ form.phone.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.postal_code.id_for_label }}" class="form-label">{{ form.postal_code.label }}</label>
+                        {{ form.postal_code }}
+                        {% if form.postal_code.errors %}<div class="text-danger small">{{ form.postal_code.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.address.id_for_label }}" class="form-label">{{ form.address.label }}</label>
+                        {{ form.address }}
+                        {% if form.address.errors %}<div class="text-danger small">{{ form.address.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.plan.id_for_label }}" class="form-label">{{ form.plan.label }}</label>
+                        {{ form.plan }}
+                        {% if form.plan.errors %}<div class="text-danger small">{{ form.plan.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3 form-check">
+                        {{ form.is_special_user }}
+                        <label class="form-check-label" for="{{ form.is_special_user.id_for_label }}">{{ form.is_special_user.label }}</label>
+                        {% if form.is_special_user.errors %}<div class="text-danger small">{{ form.is_special_user.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 justify-content-md-end mt-4">
+                        <a href="{% url 'reservations:user_detail' pk=member_user.pk %}" class="btn btn-secondary">
                             <i class="fas fa-times"></i> キャンセル
                         </a>
                         <button type="submit" class="btn btn-warning">
@@ -81,9 +116,3 @@
     </div>
 </div>
 {% endblock %}
-
-
-
-
-
-

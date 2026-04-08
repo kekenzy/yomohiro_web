@@ -71,10 +71,22 @@
                                                 <small class="text-muted">{{ user.date_joined|date:"Y/m/d" }}</small>
                                             </td>
                                             <td>
-                                                <a href="{% url 'reservations:user_detail' pk=user.pk %}" 
-                                                   class="btn btn-sm btn-outline-warning">
-                                                    <i class="fas fa-eye"></i> 詳細
-                                                </a>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <a href="{% url 'reservations:user_detail' pk=user.pk %}" 
+                                                       class="btn btn-outline-warning">
+                                                        <i class="fas fa-eye"></i> 詳細
+                                                    </a>
+                                                    <a href="{% url 'reservations:user_edit' pk=user.pk %}" 
+                                                       class="btn btn-outline-secondary">
+                                                        <i class="fas fa-edit"></i> 編集
+                                                    </a>
+                                                    {% if user.pk != request.user.pk %}
+                                                    <a href="{% url 'reservations:user_delete' pk=user.pk %}" 
+                                                       class="btn btn-outline-danger">
+                                                        <i class="fas fa-trash-alt"></i> 削除
+                                                    </a>
+                                                    {% endif %}
+                                                </div>
                                             </td>
                                         </tr>
                                     {% endwith %}

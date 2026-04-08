@@ -2,6 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.db.models import Q
 from .models import Location, TimeSlot, Reservation, Plan, MemberProfile
 from datetime import date
 import re
@@ -451,7 +452,7 @@ class MemberRegistrationStep4Form(forms.Form):
 
 
 class UserEditForm(forms.ModelForm):
-    """ユーザー編集フォーム（MemberProfileのis_special_userを編集）"""
+    """ユーザー編集フォーム（MemberProfileのis_special_userを編集）— 後方互換のため残す"""
     class Meta:
         model = MemberProfile
         fields = ['is_special_user']
@@ -461,3 +462,139 @@ class UserEditForm(forms.ModelForm):
         labels = {
             'is_special_user': '特別ユーザー（3ヶ月先まで予約可能）',
         }
+
+
+class AdminUserEditForm(forms.Form):
+    """管理者用: Django User と MemberProfile をまとめて編集"""
+
+    username = forms.CharField(
+        max_length=150,
+        label='ユーザー名',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    email = forms.EmailField(
+        label='メールアドレス',
+        widget=forms.EmailInput(attrs={'class': 'form-control'}),
+    )
+    new_password1 = forms.CharField(
+        label='新しいパスワード（変更しない場合は空）',
+        required=False,
+        strip=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+    )
+    new_password2 = forms.CharField(
+        label='新しいパスワード（確認）',
+        required=False,
+        strip=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+    )
+    full_name = forms.CharField(
+        max_length=100,
+        label='氏名',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    gender = forms.ChoiceField(
+        choices=MemberProfile.GENDER_CHOICES,
+        label='性別',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    phone = forms.CharField(
+        max_length=15,
+        required=False,
+        label='電話番号',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    postal_code = forms.CharField(
+        max_length=10,
+        required=False,
+        label='郵便番号',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    address = forms.CharField(
+        required=False,
+        label='住所',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+    )
+    plan = forms.ModelChoiceField(
+        queryset=Plan.objects.none(),
+        required=False,
+        label='プラン',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    is_special_user = forms.BooleanField(
+        required=False,
+        label='特別ユーザー（3ヶ月先まで予約可能）',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
+    def __init__(self, *args, user=None, profile=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._user = user
+        self._profile = profile
+        qs = Plan.objects.filter(is_active=True)
+        if profile and profile.plan_id:
+            qs = Plan.objects.filter(
+                Q(is_active=True) | Q(pk=profile.plan_id)
+            ).distinct()
+        self.fields['plan'].queryset = qs.order_by('price', 'name')
+        if user is not None:
+            self.fields['username'].initial = user.username
+            self.fields['email'].initial = user.email
+        if profile is not None:
+            self.fields['full_name'].initial = profile.full_name
+            self.fields['gender'].initial = profile.gender
+            self.fields['phone'].initial = profile.phone
+            self.fields['postal_code'].initial = profile.postal_code
+            self.fields['address'].initial = profile.address
+            self.fields['plan'].initial = profile.plan
+            self.fields['is_special_user'].initial = profile.is_special_user
+
+    def clean_username(self):
+        u = self.cleaned_data['username'].strip()
+        if not u:
+            raise forms.ValidationError('ユーザー名を入力してください。')
+        qs = User.objects.filter(username=u)
+        if self._user is not None:
+            qs = qs.exclude(pk=self._user.pk)
+        if qs.exists():
+            raise forms.ValidationError('このユーザー名は既に使用されています。')
+        return u
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip()
+        qs = User.objects.filter(email__iexact=email)
+        if self._user is not None:
+            qs = qs.exclude(pk=self._user.pk)
+        if qs.exists():
+            raise forms.ValidationError('このメールアドレスは既に登録されています。')
+        return email
+
+    def clean(self):
+        data = super().clean()
+        p1 = data.get('new_password1') or ''
+        p2 = data.get('new_password2') or ''
+        if p1 or p2:
+            if p1 != p2:
+                raise forms.ValidationError('パスワードと確認が一致しません。')
+            if len(p1) < 8:
+                raise forms.ValidationError('パスワードは8文字以上にしてください。')
+        return data
+
+    def save(self):
+        user = self._user
+        profile = self._profile
+        user.username = self.cleaned_data['username']
+        user.email = self.cleaned_data['email']
+        p1 = self.cleaned_data.get('new_password1') or ''
+        if p1:
+            user.set_password(p1)
+        user.save()
+        profile.full_name = self.cleaned_data['full_name']
+        profile.gender = self.cleaned_data['gender']
+        profile.phone = self.cleaned_data.get('phone') or ''
+        profile.postal_code = self.cleaned_data.get('postal_code') or ''
+        profile.address = self.cleaned_data.get('address') or ''
+        profile.plan = self.cleaned_data.get('plan')
+        profile.is_special_user = self.cleaned_data.get('is_special_user', False)
+        profile.save()
+        return user, profile

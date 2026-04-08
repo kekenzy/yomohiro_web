@@ -43,6 +43,7 @@ urlpatterns = [
     path('user-management/', views.user_management, name='user_management'),
     path('users/<int:pk>/', views.user_detail, name='user_detail'),
     path('users/<int:pk>/edit/', views.user_edit, name='user_edit'),
+    path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
     path('login/', views.custom_login, name='custom_login'),
     path('logout/', LogoutView.as_view(next_page='reservations:index'), name='logout'),
     path('api/calendar/events/', views.get_calendar_events, name='calendar_events'),

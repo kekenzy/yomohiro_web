@@ -26,7 +26,8 @@ from .member_utils import get_default_regular_member_plan
 from .forms import (
     ReservationForm, ReservationSearchForm, LocationForm, TimeSlotForm, PlanForm,
     MemberRegistrationStep1Form, MemberRegistrationStep2Form,
-    MemberRegistrationStep3Form, MemberRegistrationStep4Form, UserEditForm,
+    MemberRegistrationStep3Form, MemberRegistrationStep4Form,
+    AdminUserEditForm,
     MemberRegistrationSimpleForm,
 )
 from .decorators import superuser_required
@@ -2269,24 +2270,13 @@ def user_detail(request, pk):
             phone='',
         )
     
-    # POSTリクエストの場合は編集処理
-    if request.method == 'POST':
-        form = UserEditForm(request.POST, instance=profile)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'ユーザー情報が正常に更新されました。')
-            return redirect('reservations:user_detail', pk=user.pk)
-    else:
-        form = UserEditForm(instance=profile)
-    
     # ユーザーの予約履歴
     reservations = Reservation.objects.filter(created_by=user).order_by('-date', '-time_slot__start_time')[:10]
     
     return render(request, 'reservations/user_detail.html', {
-        'user': user,
+        'member_user': user,
         'profile': profile,
         'reservations': reservations,
-        'form': form
     })
 
 
@@ -2300,7 +2290,6 @@ def user_edit(request, pk):
     try:
         profile = MemberProfile.objects.get(user=user)
     except MemberProfile.DoesNotExist:
-        # MemberProfileが存在しない場合は作成
         profile = MemberProfile.objects.create(
             user=user,
             full_name=user.get_full_name() or user.username,
@@ -2309,18 +2298,50 @@ def user_edit(request, pk):
         )
     
     if request.method == 'POST':
-        form = UserEditForm(request.POST, instance=profile)
+        form = AdminUserEditForm(request.POST, user=user, profile=profile)
         if form.is_valid():
             form.save()
-            messages.success(request, 'ユーザー情報が正常に更新されました。')
+            messages.success(request, 'ユーザー情報が正常に更新しました。')
             return redirect('reservations:user_detail', pk=user.pk)
     else:
-        form = UserEditForm(instance=profile)
+        form = AdminUserEditForm(user=user, profile=profile)
     
     return render(request, 'reservations/user_edit.html', {
         'form': form,
-        'user': user,
-        'profile': profile
+        'member_user': user,
+        'profile': profile,
+    })
+
+
+@login_required
+@superuser_required
+def user_delete(request, pk):
+    """ユーザー削除（管理者のみ）"""
+    target_user = get_object_or_404(User, pk=pk)
+    try:
+        profile = MemberProfile.objects.get(user=target_user)
+    except MemberProfile.DoesNotExist:
+        profile = None
+
+    if request.method == 'POST':
+        if target_user.pk == request.user.pk:
+            messages.error(request, '自分自身のアカウントは削除できません。')
+            return redirect('reservations:user_detail', pk=pk)
+        if target_user.is_superuser:
+            other_super = User.objects.filter(is_superuser=True).exclude(pk=target_user.pk).exists()
+            if not other_super:
+                messages.error(request, '最後の管理者アカウントは削除できません。')
+                return redirect('reservations:user_detail', pk=pk)
+        label = target_user.username
+        target_user.delete()
+        messages.success(request, f'ユーザー「{label}」を削除しました。')
+        return redirect('reservations:user_management')
+
+    reservation_count = Reservation.objects.filter(created_by=target_user).count()
+    return render(request, 'reservations/user_confirm_delete.html', {
+        'target_user': target_user,
+        'profile': profile,
+        'reservation_count': reservation_count,
     })
 
 

@@ -12,6 +12,7 @@ services:
     ports:
       - "5432:5432"
 
+  # requirements.txt を更新したら: docker compose build web && docker compose up -d web
   web:
     build: .
     command: python manage.py runserver 0.0.0.0:8001
