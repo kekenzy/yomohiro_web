@@ -215,7 +215,8 @@ if [ -f "config/nginx.conf" ]; then
     # Let's Encrypt 取得済みなら毎デプロイで fullchain に切り替え（上書き対策）。
     LE_CHAIN="/etc/letsencrypt/live/yomohirokan.com/fullchain.pem"
     LE_KEY="/etc/letsencrypt/live/yomohirokan.com/privkey.pem"
-    if [ -f "$LE_CHAIN" ] && [ -f "$LE_KEY" ]; then
+    # live/ は root のみ一覧可能なため ubuntu の [ -f ] では常に失敗する。sudo で存在確認する。
+    if sudo test -f "$LE_CHAIN" && sudo test -f "$LE_KEY"; then
         echo "⚙️  Nginx SSL を Let's Encrypt に切り替え（$LE_CHAIN）..."
         sudo sed -i \
             -e 's|ssl_certificate /etc/nginx/ssl/cloudflare_origin.crt;|ssl_certificate /etc/letsencrypt/live/yomohirokan.com/fullchain.pem;|' \
