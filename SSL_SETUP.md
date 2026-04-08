@@ -97,7 +97,7 @@ sudo systemctl status gunicorn
 
 設定されるセキュリティ機能：
 
-- ✅ **HSTS (Strict-Transport-Security)**: ブラウザにHTTPSを強制
+- ✅ **HSTS (Strict-Transport-Security)**: ブラウザに HTTPS を推奨（`preload` は付与しない。誤った証明書時にブラウザが完全にロックするのを防ぐ）
 - ✅ **OCSP Stapling**: SSL証明書の検証を高速化
 - ✅ **強力な暗号化**: TLS 1.2/1.3のみ、強力な暗号スイート
 - ✅ **セキュリティヘッダー**: XSS保護、クリックジャッキング対策など
@@ -120,6 +120,32 @@ sudo certbot renew --dry-run
 4. **メールアドレス**: 証明書の期限切れ通知を受け取るメールアドレスを設定してください
 
 ## 🛠️ トラブルシューティング
+
+### `Killed` とだけ出て `./setup_ssl.sh` や `apt-get` が止まる場合
+
+**原因の多くはメモリ不足（OOM）です。** 512MB プランの Lightsail では、`apt-get install certbot` の途中でカーネルがプロセスを強制終了し、シェルに `Killed` とだけ表示されることがあります。
+
+**確認（SSH 先で）:**
+
+```bash
+sudo dmesg -T | tail -30 | grep -i 'killed process\|out of memory'
+```
+
+**対処（推奨）: スワップを 1〜2GB 追加してからスクリプトを再実行**
+
+```bash
+# 2GB スワップの例（未作成のときのみ）
+sudo fallocate -l 2G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+free -h
+```
+
+その後、もう一度 `./setup_ssl.sh your-domain.com` を実行する。リポジトリの `setup_ssl.sh` は `--no-install-recommends certbot` でインストール負荷を抑えています。
+
+一時的に **Gunicorn を止めてメモリを空ける**（`sudo systemctl stop gunicorn`）→ スクリプト実行 → 完了後 `sudo systemctl start gunicorn` も有効な場合があります。
 
 ### 証明書の取得に失敗する場合（`unauthorized` / `404` on `/.well-known/acme-challenge/`）
 
@@ -155,6 +181,28 @@ sudo tail -50 /var/log/nginx/error.log
 sudo certbot renew
 sudo systemctl reload nginx
 ```
+
+### `NET::ERR_CERT_AUTHORITY_INVALID` と「HSTS のためアクセスできません」
+
+**状況:** HTTPS の証明書がブラウザに信頼されない（自己署名・パス誤り・Let’s Encrypt 未取得など）のに、以前 **`Strict-Transport-Security`（HSTS）** を一度でも受け取っていると、Chrome は **警告を迂回できず** 接続できなくなります。
+
+**いま取れる対処（順番に）:**
+
+1. **別の経路でサーバに触れる**  
+   - ブラウザでは **`http://（Lightsail の静的 IP）/`** を開く（例: `http://54.178.68.240/`）。`nginx_ssl.conf` では IP 向け HTTP は **HTTPS に飛ばさない** ブロックになっているため、**証明書が壊れていてもサイトの中身の復旧作業ができる**ことが多いです。  
+   - または **SSH**（`ssh yomohiro` など）で接続する。
+
+2. **この PC の Chrome にだけ HSTS 記録を消す（一時的）**  
+   - アドレスバーに `chrome://net-internals/#hsts` と入力。  
+   - **「Delete domain security policies」** に `yomohirokan.com` を入れて **Delete**。  
+   - `www.yomohirokan.com` も同様に試す。  
+   - これでも **`https://` のままでは証明書が無効ならエラーは残る**が、**HSTS だけが原因の「一切進めない」状態**は緩むことがあります。根本は **有効な証明書**（下記）。
+
+3. **根本対応: スワップを足してから `setup_ssl.sh` を最後まで成功させる**  
+   - メモリ不足で `Killed` になった場合は、同じページの **「`Killed` で止まる」** の節（スワップ追加）を先に実施。  
+   - `sudo nginx -t` で設定が通るか確認。`/etc/letsencrypt/live/ドメイン/` が無いのに `nginx_ssl.conf` だけ載っていると、Nginx が起動しない／変な証明書になることがあります。
+
+4. **リポジトリを `git pull` したうえで** `config/nginx_ssl.conf` をサーバに反映し、`preload` / `includeSubDomains` を付けない現行版にすると、**同じ事故で二度とブラウザが完全ロックしにくく**なります。
 
 ## 📚 参考リンク
 

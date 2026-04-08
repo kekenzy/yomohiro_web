@@ -28,6 +28,9 @@ services:
       - SQUARE_ACCESS_TOKEN=EAAAl5UHQGekKNOWGRkLWMJ7NTohmkFaFRZXL2wioazmvTMi-PcFmU9SHpwwdSSe
       - SQUARE_ENVIRONMENT=sandbox
       - SQUARE_LOCATION_ID=LHQHHBA22J5E1
+      # プロジェクト直下の .env から読み込み（未設定なら空＝LINE ボタン非表示）
+      - LINE_CHANNEL_ID=${LINE_CHANNEL_ID:-}
+      - LINE_CHANNEL_SECRET=${LINE_CHANNEL_SECRET:-}
 
   adminer:
     image: adminer:latest

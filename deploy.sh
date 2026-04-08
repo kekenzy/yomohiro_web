@@ -211,6 +211,19 @@ if [ -f "config/nginx.conf" ]; then
     echo "⚙️  Nginx サイト設定を反映..."
     sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
     sudo cp config/nginx.conf /etc/nginx/sites-available/yomohiro_web
+    # ブラウザがオリジンに直接 TLS する構成では自己署名だとアクセス不能になる。
+    # Let's Encrypt 取得済みなら毎デプロイで fullchain に切り替え（上書き対策）。
+    LE_CHAIN="/etc/letsencrypt/live/yomohirokan.com/fullchain.pem"
+    LE_KEY="/etc/letsencrypt/live/yomohirokan.com/privkey.pem"
+    if [ -f "$LE_CHAIN" ] && [ -f "$LE_KEY" ]; then
+        echo "⚙️  Nginx SSL を Let's Encrypt に切り替え（$LE_CHAIN）..."
+        sudo sed -i \
+            -e 's|ssl_certificate /etc/nginx/ssl/cloudflare_origin.crt;|ssl_certificate /etc/letsencrypt/live/yomohirokan.com/fullchain.pem;|' \
+            -e 's|ssl_certificate_key /etc/nginx/ssl/cloudflare_origin.key;|ssl_certificate_key /etc/letsencrypt/live/yomohirokan.com/privkey.pem;|' \
+            /etc/nginx/sites-available/yomohiro_web
+    else
+        echo "ℹ️  Let's Encrypt が未配置のため、config/nginx.conf の SSL パス（自己署名）のままです。取得後は certbot 実行後に再デプロイしてください。"
+    fi
     if [ ! -L "/etc/nginx/sites-enabled/yomohiro_web" ]; then
         sudo ln -sf /etc/nginx/sites-available/yomohiro_web /etc/nginx/sites-enabled/
         sudo rm -f /etc/nginx/sites-enabled/default

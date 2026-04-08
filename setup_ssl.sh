@@ -53,9 +53,10 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 # Certbotのインストール（webroot 用。nginx プラグインは不要）
+# --no-install-recommends でメモリ使用量を抑える（小容量 Lightsail で apt が Killed になるのを防ぐ）
 echo "📦 Certbotをインストール中..."
 sudo -E apt-get update -qq
-sudo -E apt-get install -y -qq certbot
+sudo -E apt-get install -y -qq --no-install-recommends certbot
 
 # ACME チャレンジ用ディレクトリ
 echo "📁 ACME 用ディレクトリを作成中..."
