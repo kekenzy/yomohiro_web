@@ -83,6 +83,20 @@ https://YOUR_DOMAIN/accounts/line/login/callback/
 - OAuth の `redirect_uri` は **HTTPS** 前提。オリジンが HTTP（`DEBUG=True` のまま本番など）だと **http://** で送られ、LINE 側が **https://** だけ許可していると必ず不一致になる。**本番は `DEBUG=False`**。どうしても `DEBUG=True` にする必要があるときは `.env` に `ACCOUNT_DEFAULT_HTTP_PROTOCOL=https` を明示する。
 - 管理画面の **ソーシャルアプリケーション** に古い LINE 用エントリが複数あると、`SOCIALACCOUNT_PROVIDERS` と食い違うことがある。不要なら削除し、サイトに紐づく設定を 1 つに揃える。
 
+**`Invalid redirect_uri` が消えないとき（ブラウザの authorize URL に `redirect_uri=https://yomohirokan.com/...` と出ているのに 400 になる場合）**
+
+LINE は **そのリクエストの `client_id` が指すチャネル 1 つ**の「LINE ログイン」タブに書かれたコールバックだけを見ます。次を順に確認する。
+
+1. [LINE Developers コンソール](https://developers.line.biz/console/) を開き、一覧から **チャネルを開く**。
+2. **基本設定**で **Channel ID** を確認する。ネットワークタブの `client_id=`（例: `2009743735`）と **同じ数字のチャネル**であること（別チャネルの ID を `.env` に入れていないか）。
+3. そのチャネルの種類が **LINE Login** であること（Messaging API だけのチャネルではないこと）。
+4. **LINE ログイン**タブ → **コールバック URL** に、次を **コピペで 1 行追加し保存**する（前後に空白を入れない）。複数行あればよい。
+   - `https://yomohirokan.com/accounts/line/login/callback/`
+   - `www` からもアクセスするなら `https://www.yomohirokan.com/accounts/line/login/callback/` も別行で追加。
+5. **基本設定** → **OpenID Connect** でメール利用の申請が未承認なら、`.env` で `LINE_LOGIN_SCOPE=profile,openid` のみにする（`email` は申請承認後に追加。公式は「メール取得は申請必須」としている）。Gunicorn 再起動が必要。
+
+Django **Sites**（管理画面 → Sites）は **本番ドメイン**（例: `yomohirokan.com`）に直す。`example.com` のままだとメール内リンクなどはずれるが、`redirect_uri` 自体は通常ブラウザの Host で組み立てられる。
+
 ### 任意・その他
 
 | 変数名 | 説明 |

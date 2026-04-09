@@ -192,6 +192,13 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 # LINE Login（LINE Developers の LINE Login チャネルの Channel ID / Secret）
 LINE_CHANNEL_ID = config('LINE_CHANNEL_ID', default='')
 LINE_CHANNEL_SECRET = config('LINE_CHANNEL_SECRET', default='')
+# カンマ区切り。email は OpenID Connect でメール取得の申請承認後のみ有効（未承認だと別エラーになり得る）
+# 例: LINE_LOGIN_SCOPE=profile,openid
+LINE_LOGIN_SCOPE = [
+    s.strip()
+    for s in config('LINE_LOGIN_SCOPE', default='profile,openid,email').split(',')
+    if s.strip()
+]
 
 SOCIALACCOUNT_PROVIDERS = {
     'line': {
@@ -199,7 +206,7 @@ SOCIALACCOUNT_PROVIDERS = {
             'client_id': LINE_CHANNEL_ID,
             'secret': LINE_CHANNEL_SECRET,
         },
-        'SCOPE': ['profile', 'openid', 'email'],
+        'SCOPE': LINE_LOGIN_SCOPE,
     },
 }
 
