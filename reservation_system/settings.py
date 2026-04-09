@@ -175,6 +175,19 @@ AUTHENTICATION_BACKENDS = [
 
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
+# @login_required 等のログインへリダイレクト先（allauth 既定の /accounts/login/ ではなく自前ログインへ）
+LOGIN_URL = '/login/'
+
+# allauth が LINE 等の OAuth で送る redirect_uri のスキーム。
+# 既定が http のとき Gunicorn 直(HTTP) では request が http になり、LINE に https だけ登録していると
+# 「Invalid redirect_uri」になる。.env で明示するか本番は DEBUG=False にする。
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = config(
+    'ACCOUNT_DEFAULT_HTTP_PROTOCOL',
+    default='https' if not DEBUG else 'http',
+).lower()
+
+# LINE 認可へそのまま飛ばす（既定 False だと「続ける」中間ページになる）
+SOCIALACCOUNT_LOGIN_ON_GET = True
 
 # LINE Login（LINE Developers の LINE Login チャネルの Channel ID / Secret）
 LINE_CHANNEL_ID = config('LINE_CHANNEL_ID', default='')
@@ -199,9 +212,6 @@ ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
-
-if not DEBUG:
-    ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
 
 # Security settings for production
 if not DEBUG:

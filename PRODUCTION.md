@@ -79,7 +79,9 @@ https://YOUR_DOMAIN/accounts/line/login/callback/
 ```
 
 - 末尾のスラッシュを含める。
-- OAuth 用の URL は **HTTPS** を推奨（本番は `ACCOUNT_DEFAULT_HTTP_PROTOCOL` が `https`）。
+- **apex と `www` の両方**からアクセスする場合は、LINE に **両方の URL** を登録する（ホストが 1 文字でも違うと `Invalid redirect_uri`）。
+- OAuth の `redirect_uri` は **HTTPS** 前提。オリジンが HTTP（`DEBUG=True` のまま本番など）だと **http://** で送られ、LINE 側が **https://** だけ許可していると必ず不一致になる。**本番は `DEBUG=False`**。どうしても `DEBUG=True` にする必要があるときは `.env` に `ACCOUNT_DEFAULT_HTTP_PROTOCOL=https` を明示する。
+- 管理画面の **ソーシャルアプリケーション** に古い LINE 用エントリが複数あると、`SOCIALACCOUNT_PROVIDERS` と食い違うことがある。不要なら削除し、サイトに紐づく設定を 1 つに揃える。
 
 ### 任意・その他
 
