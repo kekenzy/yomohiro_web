@@ -60,7 +60,7 @@
                                                 <tbody>
                                                     {% for detail in date_detail.time_slot_details %}
                                                     <tr>
-                                                        <td>{{ detail.time_slot.start_time }} - {{ detail.time_slot.end_time }}</td>
+                                                        <td>{{ detail.range_start_time|time:"H:i" }} - {{ detail.range_end_time|time:"H:i" }}</td>
                                                         <td>{{ detail.duration_minutes }}分（{{ detail.units_30min }}×30分）</td>
                                                         <td class="text-end">{{ detail.amount|floatformat:0 }}円</td>
                                                     </tr>

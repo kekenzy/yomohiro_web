@@ -389,6 +389,29 @@ function toggleSlot(cell) {
     updateSelectedSlotsInfo();
 }
 
+/** slotTime 形式 "HH:MM-HH:MM" の配列を、隣接する枠でまとめた表示ラベルにする */
+function mergeConsecutiveSlotTimeLabels(slotObjs) {
+    if (!slotObjs.length) return [];
+    const parsed = slotObjs.map(s => {
+        const parts = String(s.slotTime).split('-');
+        return { start: parts[0].trim(), end: parts[1].trim() };
+    }).sort((a, b) => a.start.localeCompare(b.start));
+    const out = [];
+    let curStart = parsed[0].start;
+    let curEnd = parsed[0].end;
+    for (let i = 1; i < parsed.length; i++) {
+        if (curEnd === parsed[i].start) {
+            curEnd = parsed[i].end;
+        } else {
+            out.push(`${curStart}-${curEnd}`);
+            curStart = parsed[i].start;
+            curEnd = parsed[i].end;
+        }
+    }
+    out.push(`${curStart}-${curEnd}`);
+    return out;
+}
+
 function updateSelectedSlotsInfo() {
     const infoDiv = document.getElementById('selected-slots-info');
     const listDiv = document.getElementById('selected-slots-list');
@@ -421,14 +444,15 @@ function updateSelectedSlotsInfo() {
         groupedByDate[slot.date].push(slot);
     });
     
-    // 表示用のHTMLを生成
+    // 表示用のHTMLを生成（同一日内で終了＝次開始の枠は1レンジにまとめる）
     let html = '<ul class="mb-0">';
     Object.keys(groupedByDate).sort().forEach(date => {
-        const slots = groupedByDate[date];
+        const slots = groupedByDate[date].slice().sort((a, b) => a.slotTime.localeCompare(b.slotTime));
+        const mergedLabels = mergeConsecutiveSlotTimeLabels(slots);
         const dateObj = new Date(date);
         const dateStr = dateObj.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
         html += `<li><strong>${dateStr}:</strong> `;
-        html += slots.map(s => s.slotTime).join(', ');
+        html += mergedLabels.join(', ');
         html += '</li>';
     });
     html += '</ul>';

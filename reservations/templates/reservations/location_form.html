@@ -45,6 +45,21 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="{{ form.display_order.id_for_label }}" class="form-label">
+                            <i class="fas fa-sort-numeric-down"></i> 表示順
+                        </label>
+                        {{ form.display_order }}
+                        {% if form.display_order.errors %}
+                            <div class="text-danger">
+                                {% for error in form.display_order.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">数値が小さいほど予約画面・一覧で先に表示されます（同じ値のときは場所名順）。</small>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="{{ form.description.id_for_label }}" class="form-label">
                             <i class="fas fa-info-circle"></i> 説明
                         </label>

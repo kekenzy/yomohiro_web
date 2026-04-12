@@ -70,8 +70,8 @@
                                 <div class="card-body">
                                     <strong>{{ date_detail.date|date:"Y年m月d日 (D)" }}</strong>
                                     <ul class="mb-0 mt-2">
-                                        {% for time_slot in date_detail.time_slots %}
-                                        <li>{{ time_slot.start_time }} - {{ time_slot.end_time }}</li>
+                                        {% for r in date_detail.merged_slot_ranges %}
+                                        <li>{{ r.start|time:"H:i" }} - {{ r.end|time:"H:i" }}</li>
                                         {% endfor %}
                                     </ul>
                                 </div>

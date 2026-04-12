@@ -30,6 +30,10 @@ from .forms import (
 )
 from .decorators import superuser_required
 from .registration_notifications import send_registration_mails
+from .time_slot_merge import (
+    merge_consecutive_time_slot_details,
+    merge_consecutive_time_slots_for_display,
+)
 
 # ModelBackend + allauth 併用時、create_user 直後の login には backend の指定が必要
 _LOGIN_BACKEND_MODEL = 'django.contrib.auth.backends.ModelBackend'
@@ -472,11 +476,12 @@ def reservation_create(request):
                 multi_date_details = []
                 for date_str, time_slot_ids in multi_date_slots.items():
                     reservation_date = datetime.fromisoformat(date_str).date()
-                    time_slots = TimeSlot.objects.filter(id__in=time_slot_ids)
+                    time_slots = TimeSlot.objects.filter(id__in=time_slot_ids).order_by('start_time')
                     multi_date_details.append({
                         'date': reservation_date,
                         'date_str': date_str,
                         'time_slots': time_slots,
+                        'merged_slot_ranges': merge_consecutive_time_slots_for_display(time_slots),
                     })
             
             return render(request, 'reservations/reservation_form.html', {
@@ -557,7 +562,7 @@ def reservation_create(request):
             and not has_session_multi
             and not has_session_reservation
         ):
-            first = Location.objects.filter(is_active=True).order_by('name').first()
+            first = Location.objects.filter(is_active=True).first()
             if first:
                 target_lid = location_id or first.id
                 week_anchor = date.today().isoformat()
@@ -665,11 +670,12 @@ def reservation_create(request):
         multi_date_details = []
         for date_str, time_slot_ids in multi_date_slots.items():
             reservation_date = datetime.fromisoformat(date_str).date()
-            time_slots = TimeSlot.objects.filter(id__in=time_slot_ids)
+            time_slots = TimeSlot.objects.filter(id__in=time_slot_ids).order_by('start_time')
             multi_date_details.append({
                 'date': reservation_date,
                 'date_str': date_str,
                 'time_slots': time_slots,
+                'merged_slot_ranges': merge_consecutive_time_slots_for_display(time_slots),
             })
     
     return render(request, 'reservations/reservation_form.html', {
@@ -714,7 +720,7 @@ def reservation_confirm(request):
         # 各日付ごとに予約情報を整理
         for date_str, time_slot_ids in sorted(multi_date_slots.items()):
             reservation_date = datetime.fromisoformat(date_str).date()
-            time_slots = TimeSlot.objects.filter(id__in=time_slot_ids)
+            time_slots = TimeSlot.objects.filter(id__in=time_slot_ids).order_by('start_time')
             
             date_total = 0
             date_slot_details = []
@@ -739,6 +745,7 @@ def reservation_confirm(request):
                 })
                 date_total += slot_amount
             
+            date_slot_details = merge_consecutive_time_slot_details(date_slot_details)
             multi_date_details.append({
                 'date': reservation_date,
                 'time_slots': time_slots,
@@ -769,7 +776,9 @@ def reservation_confirm(request):
     
     try:
         location = Location.objects.get(id=location_id)
-        time_slots = TimeSlot.objects.filter(id__in=time_slot_ids) if time_slot_ids else []
+        time_slots = list(
+            TimeSlot.objects.filter(id__in=time_slot_ids).order_by('start_time')
+        ) if time_slot_ids else []
         reservation_date = datetime.fromisoformat(reservation_date_str).date() if reservation_date_str else None
     except (Location.DoesNotExist, ValueError, TypeError) as e:
         messages.error(request, '予約情報の読み込み中にエラーが発生しました。')
@@ -806,6 +815,8 @@ def reservation_confirm(request):
             'amount': slot_amount
         })
         total_amount += slot_amount
+    
+    time_slot_details = merge_consecutive_time_slot_details(time_slot_details)
     
     # 編集モードかどうかをチェック
     is_edit = reservation_data.get('is_edit', False)
@@ -1448,6 +1459,8 @@ def reservation_detail(request, pk):
         })
         total_amount += slot_amount
     
+    time_slot_details = merge_consecutive_time_slot_details(time_slot_details)
+    
     return render(request, 'reservations/reservation_detail.html', {
         'reservation': reservation,
         'consecutive_reservations': consecutive_reservations,
@@ -1646,7 +1659,7 @@ def admin_dashboard(request):
 def location_management(request):
     """場所管理（管理者のみ）"""
     try:
-        locations = Location.objects.all().order_by('name')
+        locations = Location.objects.all()
         return render(request, 'reservations/location_management.html', {
             'locations': locations
         })
@@ -1778,7 +1791,7 @@ def check_availability(request):
 def reservation_weekly_calendar(request):
     """週間カレンダーで予約を選択する画面"""
     location_id = request.GET.get('location')
-    first_location = Location.objects.filter(is_active=True).order_by('name').first()
+    first_location = Location.objects.filter(is_active=True).first()
     if not location_id:
         if first_location:
             return redirect(f"{reverse('reservations:reservation_weekly_calendar')}?location={first_location.id}")
@@ -1929,7 +1942,7 @@ def reservation_weekly_calendar(request):
         availability_data.append(slot_data)
     
     # すべてのアクティブな場所を取得（プルダウン用）
-    all_locations = Location.objects.filter(is_active=True).order_by('name')
+    all_locations = Location.objects.filter(is_active=True)
     
     # 予約可能期間の計算（一般ユーザーは1ヶ月、特別ユーザーは3ヶ月）
     today = date.today()
@@ -2730,7 +2743,7 @@ def visit_management(request):
     else:
         target_date = date.today()
 
-    locations = list(Location.objects.filter(is_active=True).order_by('name'))
+    locations = list(Location.objects.filter(is_active=True))
     time_slots = list(TimeSlot.objects.filter(is_active=True).order_by('start_time'))
 
     visits = list(VisitRecord.objects.filter(date=target_date).select_related(
@@ -2831,7 +2844,11 @@ def visit_api_entry(request):
             'linked_reservation': True,
         })
 
-    locs = list(Location.objects.filter(is_active=True).order_by('name').values('id', 'name'))
+    locs = list(
+        Location.objects.filter(is_active=True)
+        .order_by('display_order', 'name')
+        .values('id', 'name')
+    )
     return JsonResponse({
         'ok': False,
         'need_location': True,

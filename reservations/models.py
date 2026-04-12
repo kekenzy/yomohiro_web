@@ -11,6 +11,11 @@ class Location(models.Model):
     description = models.TextField(blank=True, verbose_name='説明')
     capacity = models.PositiveIntegerField(verbose_name='定員')
     price_per_30min = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name='30分あたりの金額（円）')
+    display_order = models.PositiveIntegerField(
+        default=0,
+        verbose_name='表示順',
+        help_text='数値が小さいほど予約画面などで先に表示されます。',
+    )
     is_active = models.BooleanField(default=True, verbose_name='有効')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -18,7 +23,7 @@ class Location(models.Model):
     class Meta:
         verbose_name = '場所'
         verbose_name_plural = '場所'
-        ordering = ['name']
+        ordering = ['display_order', 'name']
 
     def __str__(self):
         return self.name

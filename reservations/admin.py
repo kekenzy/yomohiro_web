@@ -3,10 +3,11 @@ from .models import Location, TimeSlot, Reservation, Plan, MemberProfile, Paymen
 
 @admin.register(Location)
 class LocationAdmin(admin.ModelAdmin):
-    list_display = ['name', 'capacity', 'price_per_30min', 'is_active', 'created_at']
+    list_display = ['name', 'display_order', 'capacity', 'price_per_30min', 'is_active', 'created_at']
+    list_editable = ['display_order']
     list_filter = ['is_active', 'created_at']
     search_fields = ['name', 'description']
-    ordering = ['name']
+    ordering = ['display_order', 'name']
 
 @admin.register(TimeSlot)
 class TimeSlotAdmin(admin.ModelAdmin):

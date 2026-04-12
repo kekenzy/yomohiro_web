@@ -42,8 +42,8 @@
                                 <th>時間枠詳細:</th>
                                 <td>
                                     <ul class="mb-0">
-                                        {% for res in consecutive_reservations %}
-                                            <li>{{ res.time_slot.start_time }} - {{ res.time_slot.end_time }}</li>
+                                        {% for detail in time_slot_details %}
+                                            <li>{{ detail.range_start_time|time:"H:i" }} - {{ detail.range_end_time|time:"H:i" }}</li>
                                         {% endfor %}
                                     </ul>
                                 </td>
@@ -64,7 +64,7 @@
                                         <tbody>
                                             {% for detail in time_slot_details %}
                                             <tr>
-                                                <td>{{ detail.time_slot.start_time|time:"H:i" }} - {{ detail.time_slot.end_time|time:"H:i" }}</td>
+                                                <td>{{ detail.range_start_time|time:"H:i" }} - {{ detail.range_end_time|time:"H:i" }}</td>
                                                 <td>{{ detail.duration_minutes }}分（{{ detail.units_30min }}×30分）</td>
                                                 <td class="text-end">{{ detail.amount|floatformat:0 }}円</td>
                                             </tr>

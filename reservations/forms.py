@@ -11,9 +11,10 @@ class LocationForm(forms.ModelForm):
     """場所フォーム"""
     class Meta:
         model = Location
-        fields = ['name', 'description', 'capacity', 'price_per_30min', 'is_active']
+        fields = ['name', 'display_order', 'description', 'capacity', 'price_per_30min', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '場所名を入力してください'}),
+            'display_order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 1}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '場所の説明を入力してください'}),
             'capacity': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'price_per_30min': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 1, 'placeholder': '30分あたりの金額を入力してください'}),

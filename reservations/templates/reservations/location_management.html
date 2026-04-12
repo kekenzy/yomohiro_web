@@ -39,6 +39,7 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
+                                    <th>表示順</th>
                                     <th>場所名</th>
                                     <th>説明</th>
                                     <th>定員</th>
@@ -50,6 +51,9 @@
                             <tbody>
                                 {% for location in locations %}
                                     <tr>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ location.display_order }}</span>
+                                        </td>
                                         <td>
                                             <strong>{{ location.name }}</strong>
                                         </td>
