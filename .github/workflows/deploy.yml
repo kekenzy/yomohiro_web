@@ -3,9 +3,9 @@ name: Deploy to AWS Lightsail
 on:
   push:
     branches:
-      - main  # mainブランチへのプッシュでデプロイ
-      - master  # または master ブランチ
-  workflow_dispatch:  # 手動実行も可能
+      - main  # CI（test）。deploy ジョブは下記コメントアウト中
+      - master
+  workflow_dispatch:  # 手動実行も可能（現状は test のみ）
 
 jobs:
   test:
@@ -33,81 +33,81 @@ jobs:
       run: |
         python manage.py test
 
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Deploy to Lightsail
-      env:
-        LIGHTSAIL_HOST: ${{ secrets.LIGHTSAIL_HOST }}
-        LIGHTSAIL_USER: ${{ secrets.LIGHTSAIL_USER }}
-        LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
-      run: |
-        # SSH秘密鍵をセットアップ
-        mkdir -p ~/.ssh
-        echo "$LIGHTSAIL_SSH_KEY" > ~/.ssh/lightsail_key
-        chmod 600 ~/.ssh/lightsail_key
-        
-        # 秘密鍵の形式を検証
-        echo "Validating SSH key format..."
-        if ! head -1 ~/.ssh/lightsail_key | grep -q "BEGIN.*PRIVATE KEY"; then
-          echo "ERROR: Invalid private key format - missing BEGIN marker"
-          head -3 ~/.ssh/lightsail_key
-          exit 1
-        fi
-        
-        if ! tail -1 ~/.ssh/lightsail_key | grep -q "END.*PRIVATE KEY"; then
-          echo "ERROR: Invalid private key format - missing END marker"
-          tail -3 ~/.ssh/lightsail_key
-          exit 1
-        fi
-        
-        echo "SSH key format validation passed"
-        
-        # SSH設定を作成
-        cat > ~/.ssh/config << EOF
-        Host lightsail
-          HostName $LIGHTSAIL_HOST
-          User $LIGHTSAIL_USER
-          IdentityFile ~/.ssh/lightsail_key
-          StrictHostKeyChecking no
-          UserKnownHostsFile /dev/null
-          ServerAliveInterval 60
-          ServerAliveCountMax 3
-        EOF
-        
-        # SSH接続テスト（詳細ログ付き）
-        echo "Testing SSH connection with verbose output..."
-        ssh -vvv -o ConnectTimeout=30 lightsail "echo 'SSH connection successful'" || {
-          echo "SSH connection failed. Checking key format..."
-          echo "Key file contents:"
-          head -5 ~/.ssh/lightsail_key
-          echo "Key file size:"
-          wc -c ~/.ssh/lightsail_key
-          exit 1
-        }
-        
-        # デプロイスクリプトを実行
-        ssh lightsail << 'ENDSSH'
-          cd /home/ubuntu/yomohiro_web
-          git pull origin main
-          source venv/bin/activate
-          pip install -r requirements.txt
-          python manage.py migrate
-          python manage.py collectstatic --noinput
-          sudo systemctl restart gunicorn
-          sudo systemctl restart nginx
-        ENDSSH
-    
-    - name: Deployment Status
-      if: success()
-      run: echo "✅ Deployment successful!"
-    
-    - name: Deployment Failed
-      if: failure()
-      run: echo "❌ Deployment failed!"
-
+  # --- deploy ジョブは一時無効化（push 時は test のみ。再有効化する際はこのブロック全体の # を外す）---
+  # deploy:
+  #   needs: test
+  #   runs-on: ubuntu-latest
+  #
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
+  #
+  #   - name: Deploy to Lightsail
+  #     env:
+  #       LIGHTSAIL_HOST: ${{ secrets.LIGHTSAIL_HOST }}
+  #       LIGHTSAIL_USER: ${{ secrets.LIGHTSAIL_USER }}
+  #       LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+  #     run: |
+  #       # SSH秘密鍵をセットアップ
+  #       mkdir -p ~/.ssh
+  #       echo "$LIGHTSAIL_SSH_KEY" > ~/.ssh/lightsail_key
+  #       chmod 600 ~/.ssh/lightsail_key
+  #
+  #       # 秘密鍵の形式を検証
+  #       echo "Validating SSH key format..."
+  #       if ! head -1 ~/.ssh/lightsail_key | grep -q "BEGIN.*PRIVATE KEY"; then
+  #         echo "ERROR: Invalid private key format - missing BEGIN marker"
+  #         head -3 ~/.ssh/lightsail_key
+  #         exit 1
+  #       fi
+  #
+  #       if ! tail -1 ~/.ssh/lightsail_key | grep -q "END.*PRIVATE KEY"; then
+  #         echo "ERROR: Invalid private key format - missing END marker"
+  #         tail -3 ~/.ssh/lightsail_key
+  #         exit 1
+  #       fi
+  #
+  #       echo "SSH key format validation passed"
+  #
+  #       # SSH設定を作成
+  #       cat > ~/.ssh/config << EOF
+  #       Host lightsail
+  #         HostName $LIGHTSAIL_HOST
+  #         User $LIGHTSAIL_USER
+  #         IdentityFile ~/.ssh/lightsail_key
+  #         StrictHostKeyChecking no
+  #         UserKnownHostsFile /dev/null
+  #         ServerAliveInterval 60
+  #         ServerAliveCountMax 3
+  #       EOF
+  #
+  #       # SSH接続テスト（詳細ログ付き）
+  #       echo "Testing SSH connection with verbose output..."
+  #       ssh -vvv -o ConnectTimeout=30 lightsail "echo 'SSH connection successful'" || {
+  #         echo "SSH connection failed. Checking key format..."
+  #         echo "Key file contents:"
+  #         head -5 ~/.ssh/lightsail_key
+  #         echo "Key file size:"
+  #         wc -c ~/.ssh/lightsail_key
+  #         exit 1
+  #       }
+  #
+  #       # デプロイスクリプトを実行
+  #       ssh lightsail << 'ENDSSH'
+  #         cd /home/ubuntu/yomohiro_web
+  #         git pull origin main
+  #         source venv/bin/activate
+  #         pip install -r requirements.txt
+  #         python manage.py migrate
+  #         python manage.py collectstatic --noinput
+  #         sudo systemctl restart gunicorn
+  #         sudo systemctl restart nginx
+  #       ENDSSH
+  #
+  #   - name: Deployment Status
+  #     if: success()
+  #     run: echo "✅ Deployment successful!"
+  #
+  #   - name: Deployment Failed
+  #     if: failure()
+  #     run: echo "❌ Deployment failed!"

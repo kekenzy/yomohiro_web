@@ -13,8 +13,10 @@
             </div>
             <div class="card-body py-4">
                 <p class="text-muted small mb-3">{{ profile.full_name }} 様</p>
-                <div class="d-inline-block p-3 bg-white border rounded shadow-sm">
-                    <img src="{% url 'reservations:member_qr_image' %}" alt="会員QRコード" class="img-fluid" style="max-width:min(280px, 85vw); height:auto;">
+                <div class="mx-auto" style="max-width: min(480px, 100%);">
+                    <div class="p-2 p-sm-3 bg-white border rounded shadow-sm">
+                        <img src="{% url 'reservations:member_qr_image' %}" alt="会員QRコード" class="img-fluid w-100 d-block" style="height: auto;">
+                    </div>
                 </div>
                 <p class="text-muted small mt-3 mb-0">
                     施設での確認・チェックイン等にご利用ください。

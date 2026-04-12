@@ -29,16 +29,20 @@
                     <h5 class="border-bottom pb-2 mb-3">
                         <i class="fas fa-calendar-alt"></i> 予約情報
                     </h5>
-                    <table class="table table-bordered">
+                    <table class="table table-bordered reservation-confirm-table">
                         <tr>
-                            <th class="bg-light" style="width: 30%;">場所</th>
-                            <td>{{ location.name }}</td>
+                            <th class="bg-light d-none d-md-table-cell" style="width: 30%;">場所</th>
+                            <td>
+                                <div class="d-md-none small text-muted fw-semibold mb-1">場所</div>
+                                {{ location.name }}
+                            </td>
                         </tr>
                         {% if is_multi_date %}
                         <!-- 複数日の予約表示 -->
                         <tr>
-                            <th class="bg-light">予約日・時間枠</th>
+                            <th class="bg-light d-none d-md-table-cell">予約日・時間枠</th>
                             <td>
+                                <div class="d-md-none small text-muted fw-semibold mb-2">予約日・時間枠</div>
                                 {% if multi_date_details %}
                                 <div class="mb-3">
                                     {% for date_detail in multi_date_details %}
@@ -89,12 +93,16 @@
                         {% else %}
                         <!-- 単一日の予約表示（既存の処理） -->
                         <tr>
-                            <th class="bg-light">予約日</th>
-                            <td>{{ date|date:"Y年m月d日" }}</td>
+                            <th class="bg-light d-none d-md-table-cell">予約日</th>
+                            <td>
+                                <div class="d-md-none small text-muted fw-semibold mb-1">予約日</div>
+                                {{ date|date:"Y年m月d日" }}
+                            </td>
                         </tr>
                         <tr>
-                            <th class="bg-light">時間枠</th>
+                            <th class="bg-light d-none d-md-table-cell">時間枠</th>
                             <td>
+                                <div class="d-md-none small text-muted fw-semibold mb-2">時間枠</div>
                                 {% if time_slot_details %}
                                 <table class="table table-sm table-bordered mb-0">
                                     <thead>
@@ -136,19 +144,28 @@
                     <h5 class="border-bottom pb-2 mb-3">
                         <i class="fas fa-user"></i> お客様情報
                     </h5>
-                    <table class="table table-bordered">
+                    <table class="table table-bordered reservation-confirm-table">
                         <tr>
-                            <th class="bg-light" style="width: 30%;">お客様名</th>
-                            <td>{{ customer_name }}</td>
+                            <th class="bg-light d-none d-md-table-cell" style="width: 30%;">お客様名</th>
+                            <td>
+                                <div class="d-md-none small text-muted fw-semibold mb-1">お客様名</div>
+                                {{ customer_name }}
+                            </td>
                         </tr>
                         <tr>
-                            <th class="bg-light">メールアドレス</th>
-                            <td>{{ customer_email }}</td>
+                            <th class="bg-light d-none d-md-table-cell">メールアドレス</th>
+                            <td>
+                                <div class="d-md-none small text-muted fw-semibold mb-1">メールアドレス</div>
+                                {{ customer_email }}
+                            </td>
                         </tr>
                         {% if notes %}
                         <tr>
-                            <th class="bg-light">備考</th>
-                            <td>{{ notes }}</td>
+                            <th class="bg-light d-none d-md-table-cell">備考</th>
+                            <td>
+                                <div class="d-md-none small text-muted fw-semibold mb-1">備考</div>
+                                {{ notes }}
+                            </td>
                         </tr>
                         {% endif %}
                     </table>

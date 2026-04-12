@@ -80,6 +80,38 @@
         align-items: center;
         margin-bottom: 1rem;
     }
+    /* モバイル: 期間テキストを独立行にし、表ヘッダーを小さく1行表示 */
+    @media (max-width: 767.98px) {
+        .week-nav-period {
+            font-size: 0.8rem;
+            line-height: 1.35;
+        }
+        .calendar-table {
+            font-size: 0.72rem;
+        }
+        .calendar-table th,
+        .calendar-table td {
+            padding: 0.2rem;
+        }
+        .calendar-table .time-cell {
+            width: 3rem;
+            min-width: 3rem;
+            font-size: 0.68rem;
+        }
+        .calendar-table .date-header {
+            font-size: 0.62rem;
+            line-height: 1.15;
+            padding: 0.2rem 0.1rem !important;
+        }
+        .date-header .weekday-head-compact {
+            display: inline-block;
+            white-space: nowrap;
+        }
+        .slot-available,
+        .slot-unavailable {
+            font-size: 0.95rem !important;
+        }
+    }
     .selected-slots-info {
         background-color: #fff3cd;
         padding: 1rem;
@@ -141,7 +173,7 @@
         <div class="col-12">
             <div class="card border-warning">
                 <div class="card-header bg-warning text-dark">
-                    <h2 class="card-title mb-0">
+                    <h2 class="card-title mb-0 fs-5 fs-md-4">
                         <i class="fas fa-calendar-week text-dark"></i> 週間カレンダー - {{ location.name }}
                         {% if edit_mode %}<span class="badge bg-info text-dark ms-2">予約の変更</span>{% endif %}
                     </h2>
@@ -161,17 +193,25 @@
                         </select>
                     </div>
                     
-                    <!-- 週のナビゲーション -->
-                    <div class="week-navigation">
-                        <a href="?location={{ location.id }}&week_start={{ prev_week|date:'Y-m-d' }}{% if edit_reservation_pk %}&edit_reservation={{ edit_reservation_pk }}{% endif %}" class="btn btn-outline-warning">
-                            <i class="fas fa-chevron-left"></i> 前の週
-                        </a>
-                        <h5 class="mb-0">
-                            {{ week_start|date:"Y年m月d日" }} ～ {{ week_dates|last|date:"m月d日" }}
-                        </h5>
-                        <a href="?location={{ location.id }}&week_start={{ next_week|date:'Y-m-d' }}{% if edit_reservation_pk %}&edit_reservation={{ edit_reservation_pk }}{% endif %}" class="btn btn-outline-warning">
-                            次の週 <i class="fas fa-chevron-right"></i>
-                        </a>
+                    <!-- 週のナビゲーション（sm 未満は「前後ボタン行」＋「期間行」の2段） -->
+                    <div class="row align-items-center g-2 mb-3 week-nav-row">
+                        <div class="col-6 col-md-auto order-1 order-md-1">
+                            <a href="?location={{ location.id }}&week_start={{ prev_week|date:'Y-m-d' }}{% if edit_reservation_pk %}&edit_reservation={{ edit_reservation_pk }}{% endif %}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-chevron-left"></i> <span class="d-none d-sm-inline">前の週</span><span class="d-sm-none">前週</span>
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-auto ms-md-auto order-2 order-md-3 text-end">
+                            <a href="?location={{ location.id }}&week_start={{ next_week|date:'Y-m-d' }}{% if edit_reservation_pk %}&edit_reservation={{ edit_reservation_pk }}{% endif %}" class="btn btn-outline-warning w-100">
+                                <span class="d-none d-sm-inline">次の週</span><span class="d-sm-none">次週</span> <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </div>
+                        <div class="col-12 col-md order-3 order-md-2">
+                            <h5 class="mb-0 text-center fs-6 fs-md-5 fw-normal week-nav-period">
+                                <span class="d-inline-block text-nowrap">{{ week_start|date:"Y年m月d日" }}</span>
+                                <span class="d-none d-md-inline"> </span><span class="d-md-none"><br></span>
+                                <span class="text-nowrap">～ {{ week_dates|last|date:"m月d日" }}</span>
+                            </h5>
+                        </div>
                     </div>
 
                     <!-- 選択された時間枠の情報 -->
@@ -205,8 +245,8 @@
                                     <th class="time-cell">日時</th>
                                     {% for d in week_dates %}
                                         <th class="date-header">
-                                            {{ d|date:"d" }}<br>
-                                            <small>({{ d|date:"D" }})</small>
+                                            <span class="d-none d-md-inline">{{ d|date:"d" }}<br><small>({{ d|date:"D" }})</small></span>
+                                            <span class="weekday-head-compact d-md-none">{{ d|date:"j" }}({{ d|date:"D" }})</span>
                                         </th>
                                     {% endfor %}
                                 </tr>

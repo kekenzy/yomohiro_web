@@ -11,8 +11,6 @@ from django.views.decorators.http import require_http_methods, require_POST
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.core.files.base import ContentFile
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils import timezone
 from datetime import date, datetime, timedelta
@@ -31,6 +29,7 @@ from .forms import (
     MemberRegistrationSimpleForm,
 )
 from .decorators import superuser_required
+from .registration_notifications import send_registration_mails
 
 # ModelBackend + allauth 併用時、create_user 直後の login には backend の指定が必要
 _LOGIN_BACKEND_MODEL = 'django.contrib.auth.backends.ModelBackend'
@@ -2408,23 +2407,7 @@ def member_registration_simple(request):
 
                 # 料金ゼロ、または Square 無効時は決済なしで完了
                 login(request, user, backend=_LOGIN_BACKEND_MODEL)
-                try:
-                    subject = '会員登録が完了しました'
-                    message = render_to_string('reservations/emails/registration_complete.html', {
-                        'user': user,
-                        'profile': profile,
-                        'site_url': request.build_absolute_uri('/'),
-                    })
-                    send_mail(
-                        subject,
-                        '',
-                        settings.DEFAULT_FROM_EMAIL,
-                        [user.email],
-                        html_message=message,
-                        fail_silently=False,
-                    )
-                except Exception as e:
-                    print(f'メール送信エラー: {e}')
+                send_registration_mails(request, user, profile)
                 messages.success(request, '会員登録が完了しました。')
                 return redirect('reservations:index')
             except Exception as e:
@@ -2660,27 +2643,7 @@ def member_registration(request):
                         
                         # 自動ログイン
                         login(request, user, backend=_LOGIN_BACKEND_MODEL)
-                        
-                        # 会員登録完了メールを送信
-                        try:
-                            subject = '会員登録が完了しました'
-                            message = render_to_string('reservations/emails/registration_complete.html', {
-                                'user': user,
-                                'profile': profile,
-                                'site_url': request.build_absolute_uri('/')
-                            })
-                            send_mail(
-                                subject,
-                                '',  # プレーンテキストメールは空（HTMLメールのみ）
-                                settings.DEFAULT_FROM_EMAIL,
-                                [user.email],
-                                html_message=message,
-                                fail_silently=False,
-                            )
-                        except Exception as e:
-                            # メール送信エラーはログに記録するが、登録処理は続行
-                            print(f"メール送信エラー: {e}")
-                        
+                        send_registration_mails(request, user, profile)
                         messages.success(request, '会員登録が完了しました。')
                         return redirect('reservations:index')
                 
@@ -3195,8 +3158,10 @@ def payment_complete(request):
             # 決済完了
             if transaction.member_profile:
                 # 会員登録の場合は自動ログイン
-                user = transaction.member_profile.user
+                profile = transaction.member_profile
+                user = profile.user
                 login(request, user, backend=_LOGIN_BACKEND_MODEL)
+                send_registration_mails(request, user, profile)
                 messages.success(request, '決済が完了しました。会員登録が完了しました。')
                 return redirect('reservations:index')
             elif transaction.reservation:

@@ -253,6 +253,13 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@example.com')
 SERVER_EMAIL = config('SERVER_EMAIL', default='noreply@example.com')
 
+# 会員登録完了時の管理者通知メール宛先（カンマ区切り）。空なら is_superuser かつメール設定ありのユーザーへ送る
+REGISTRATION_NOTIFY_EMAILS = [
+    x.strip()
+    for x in config('REGISTRATION_NOTIFY_EMAILS', default='').split(',')
+    if x.strip()
+]
+
 # Square API settings（SQUARE_INTEGRATION_ENABLED=False のときは API を呼ばず、有料も未決済のまま確定扱い）
 SQUARE_INTEGRATION_ENABLED = config('SQUARE_INTEGRATION_ENABLED', default=False, cast=bool)
 SQUARE_APPLICATION_ID = config('SQUARE_APPLICATION_ID', default='sandbox-sq0idb-Klqy4yYEmO_5_1Ea9msc3w')

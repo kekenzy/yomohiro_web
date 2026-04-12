@@ -50,6 +50,18 @@ SSL 手順は [SSL_SETUP.md](SSL_SETUP.md) および [DEPLOYMENT.md](DEPLOYMENT.
 
 開発では未設定でもコンソールバックエンドが既定で動きます。
 
+#### AWS 上で SMTP を使う（Amazon SES 推奨）
+
+Lightsail や EC2 に限らず、**AWS でメールを送る場合は通常 [Amazon SES](https://docs.aws.amazon.com/ses/) の SMTP エンドポイント**を使います。Django は **標準の SMTP バックエンド**のまま、`.env` の `EMAIL_*` だけ SES 用に合わせます（Lightsail 専用のメール API は使いません）。
+
+1. **SES を有効化**し、**送信元**として **ドメインまたはメールアドレスを検証**する（本番ではドメイン検証＋DKIM が一般的）。
+2. 初期は **サンドボックス**のため、**検証済みアドレスにしか送れない**。本番向けには **本番アクセス（サンドボックス解除）** を申請する。
+3. SES コンソールで **SMTP 認証情報を作成**する（表示される **SMTP ユーザー名・パスワード** を `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` に設定）。これは **通常の IAM アクセスキーとは別物**です。
+4. **SMTP エンドポイント**はリージョン固定。例: 東京 `ap-northeast-1` なら `EMAIL_HOST=email-smtp.ap-northeast-1.amazonaws.com`、`EMAIL_PORT=587`、`EMAIL_USE_TLS=True`。
+5. `DEFAULT_FROM_EMAIL` / `SERVER_EMAIL` は **SES で検証済みのドメイン／アドレス**に合わせる。
+
+詳細は AWS 公式「[SMTP 経由で Amazon SES に接続する](https://docs.aws.amazon.com/ses/latest/dg/send-email-smtp.html)」を参照してください。
+
 ### Square（決済）
 
 | 変数名 | 説明 |
@@ -170,12 +182,14 @@ SESSION_COOKIE_SECURE=True
 CSRF_COOKIE_SECURE=True
 
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.example.com
+# Amazon SES の例（リージョンに合わせて HOST を変える）
+EMAIL_HOST=email-smtp.ap-northeast-1.amazonaws.com
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
-EMAIL_HOST_USER=
-EMAIL_HOST_PASSWORD=
+EMAIL_HOST_USER=（SES の SMTP ユーザー名）
+EMAIL_HOST_PASSWORD=（SES の SMTP パスワード）
 DEFAULT_FROM_EMAIL=noreply@your-domain.com
+SERVER_EMAIL=noreply@your-domain.com
 
 SQUARE_APPLICATION_ID=
 SQUARE_ACCESS_TOKEN=

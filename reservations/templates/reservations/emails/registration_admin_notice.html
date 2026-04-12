@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新規会員登録のお知らせ</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #856404;">[管理者向け] 新規会員が登録されました</h2>
+        <p>会員登録が完了しました。内容は以下のとおりです。</p>
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>ユーザー名:</strong> {{ user.username }}</p>
+            <p><strong>メールアドレス:</strong> {{ user.email }}</p>
+            <p><strong>氏名:</strong> {{ profile.full_name }}</p>
+            <p><strong>プラン:</strong> {{ profile.plan.name|default:"未設定" }}</p>
+        </div>
+        <p style="font-size: 12px; color: #666;">
+            管理画面: <a href="{{ site_url }}">サイトを開く</a>
+        </p>
+    </div>
+</body>
+</html>
