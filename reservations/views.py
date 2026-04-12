@@ -32,6 +32,9 @@ from .forms import (
 )
 from .decorators import superuser_required
 
+# ModelBackend + allauth 併用時、create_user 直後の login には backend の指定が必要
+_LOGIN_BACKEND_MODEL = 'django.contrib.auth.backends.ModelBackend'
+
 
 def _consecutive_reservations_group(reservation):
     """予約編集と同じく、同一日・同一場所・連続する時間枠のグループを返す。"""
@@ -2404,7 +2407,7 @@ def member_registration_simple(request):
                     return render(request, 'reservations/member_registration_simple.html', {'form': form})
 
                 # 料金ゼロ、または Square 無効時は決済なしで完了
-                login(request, user)
+                login(request, user, backend=_LOGIN_BACKEND_MODEL)
                 try:
                     subject = '会員登録が完了しました'
                     message = render_to_string('reservations/emails/registration_complete.html', {
@@ -2656,7 +2659,7 @@ def member_registration(request):
                         del request.session[session_key]
                         
                         # 自動ログイン
-                        login(request, user)
+                        login(request, user, backend=_LOGIN_BACKEND_MODEL)
                         
                         # 会員登録完了メールを送信
                         try:
@@ -3193,7 +3196,7 @@ def payment_complete(request):
             if transaction.member_profile:
                 # 会員登録の場合は自動ログイン
                 user = transaction.member_profile.user
-                login(request, user)
+                login(request, user, backend=_LOGIN_BACKEND_MODEL)
                 messages.success(request, '決済が完了しました。会員登録が完了しました。')
                 return redirect('reservations:index')
             elif transaction.reservation:
