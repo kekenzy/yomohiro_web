@@ -891,13 +891,13 @@ def reservation_confirm_submit(request):
                         customer_email=reservation_data.get('customer_email'),
                         customer_phone=reservation_data.get('customer_phone') or '',
                         notes=reservation_data.get('notes', ''),
-                        status='pending' if total_amount > 0 and SQUARE_AVAILABLE else 'confirmed',
+                        status='pending' if total_amount > 0 and square_payments_enabled() else 'confirmed',
                         created_by=request.user if request.user.is_authenticated else None
                     )
                     all_created_reservations.append(reservation)
             
             # 金額が0より大きい場合はSquare決済リンクを作成
-            if total_amount > 0 and SQUARE_AVAILABLE:
+            if total_amount > 0 and square_payments_enabled():
                 # 決済リンクを作成
                 order_id = f"multi_{datetime.now().timestamp()}"
                 description = f"{location.name} - 複数日予約"
@@ -961,7 +961,7 @@ def reservation_confirm_submit(request):
             total_amount += slot_amount
         
         # 金額が0より大きい場合はSquare決済リンクを作成
-        if total_amount > 0 and SQUARE_AVAILABLE:
+        if total_amount > 0 and square_payments_enabled():
             # まず予約を作成（pending状態）
             created_reservations = []
             if is_edit and edit_reservation_ids:
@@ -1236,7 +1236,7 @@ def reservation_confirm_submit(request):
                 total_amount += slot_amount
             
             # 金額が0より大きい場合はSquare決済リンクを作成
-            if total_amount > 0 and SQUARE_AVAILABLE:
+            if total_amount > 0 and square_payments_enabled():
                 # 決済リンクの説明を作成
                 time_slot_str = ', '.join([f"{ts.start_time.strftime('%H:%M')}-{ts.end_time.strftime('%H:%M')}" for ts in time_slots[:3]])
                 if len(time_slots) > 3:
@@ -2377,7 +2377,7 @@ def member_registration_simple(request):
                     plan=plan,
                 )
 
-                if plan.price > 0:
+                if plan.price > 0 and square_payments_enabled():
                     request.session['pending_registration_user_id'] = user.id
                     result = create_payment_link(
                         request,
@@ -2403,6 +2403,7 @@ def member_registration_simple(request):
                     user.delete()
                     return render(request, 'reservations/member_registration_simple.html', {'form': form})
 
+                # 料金ゼロ、または Square 無効時は決済なしで完了
                 login(request, user)
                 try:
                     subject = '会員登録が完了しました'
@@ -2613,8 +2614,8 @@ def member_registration(request):
                     profile.card_cvc_encrypted = base64.b64encode(step4_data['card_cvc'].encode()).decode()
                     profile.save()
                     
-                    # プランの料金がある場合はSquare決済にリダイレクト
-                    if plan and plan.price > 0:
+                    # プランの料金があり Square 有効時のみ決済へ
+                    if plan and plan.price > 0 and square_payments_enabled():
                         # セッションにユーザーIDを保存（決済完了後に会員登録を完了させるため）
                         request.session['pending_registration_user_id'] = user.id
                         
@@ -2650,7 +2651,7 @@ def member_registration(request):
                             user.delete()
                             return redirect(f"{reverse('reservations:member_registration')}?step=1")
                     else:
-                        # 料金が0の場合は会員登録を完了
+                        # 料金が0、または Square 無効時は決済なしで会員登録を完了
                         # セッションをクリア
                         del request.session[session_key]
                         
@@ -2966,11 +2967,20 @@ except ImportError:
     Client = None
 
 
+def square_payments_enabled():
+    """Square 決済連携を使うか（settings.SQUARE_INTEGRATION_ENABLED かつ SDK 利用可）。"""
+    from django.conf import settings
+    return bool(getattr(settings, 'SQUARE_INTEGRATION_ENABLED', False)) and SQUARE_AVAILABLE
+
+
 def get_square_client():
     """Square APIクライアントを取得"""
     if not SQUARE_AVAILABLE:
         raise ImportError('Square SDK is not installed')
-    
+    from django.conf import settings as django_settings
+    if not getattr(django_settings, 'SQUARE_INTEGRATION_ENABLED', False):
+        raise RuntimeError('Square integration is disabled (SQUARE_INTEGRATION_ENABLED=False)')
+
     from django.conf import settings
     
     # 環境設定（'sandbox' または 'production'）
@@ -2986,9 +2996,14 @@ def get_square_client():
 
 def create_payment_link(request, amount, order_id=None, description=''):
     """Square決済リンクを作成"""
+    from django.conf import settings
+    if not getattr(settings, 'SQUARE_INTEGRATION_ENABLED', False):
+        return {
+            'success': False,
+            'errors': ['Square integration is disabled (SQUARE_INTEGRATION_ENABLED=False).'],
+        }
     try:
         client = get_square_client()
-        from django.conf import settings
         
         # location_idを取得（必須）
         location_id = settings.SQUARE_LOCATION_ID
@@ -3100,6 +3115,11 @@ def create_payment_link(request, amount, order_id=None, description=''):
 @login_required
 def payment_create(request, reservation_id=None):
     """決済リンク作成（予約または会員登録用）"""
+    from django.conf import settings as django_settings
+    if not getattr(django_settings, 'SQUARE_INTEGRATION_ENABLED', False):
+        messages.info(request, '現在オンライン決済（Square）は無効です。')
+        return redirect('reservations:index')
+
     if reservation_id:
         reservation = get_object_or_404(Reservation, pk=reservation_id)
         amount = 1000  # 予約料金（仮）
@@ -3255,7 +3275,10 @@ def square_webhook(request):
     """Square Webhookエンドポイント"""
     from django.conf import settings
     from decouple import config as decouple_config
-    
+
+    if not getattr(settings, 'SQUARE_INTEGRATION_ENABLED', False):
+        return HttpResponse(status=200, content='Square integration disabled')
+
     # Webhook署名の検証（本番環境では必須）
     signature = request.headers.get('X-Square-Signature', '')
     webhook_secret = decouple_config('SQUARE_WEBHOOK_SECRET', default='')
